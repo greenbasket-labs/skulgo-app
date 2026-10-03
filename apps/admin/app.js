@@ -776,7 +776,7 @@ function renderAttendanceList(school, classId, date) {
   const selectedClass = loadClasses().find(
     (item) => item.schoolId === school.schoolId && item.classId === classId
   );
-  const students = loadStudents().filter(
+  const students = loadStore().students.filter(
     (student) => student.schoolId === school.schoolId && student.classId === classId
   );
   const records = loadAttendance();
