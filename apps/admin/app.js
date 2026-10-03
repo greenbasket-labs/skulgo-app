@@ -13,8 +13,10 @@ const labels = {
 
 const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
+const CLASS_STORAGE_KEY = "skulgo.admin.classes.v1";
 const memoryStorage = new Map();
 let studentStoreCache = null;
+let classStoreCache = null;
 
 function readStorage(key) {
   try { const value = localStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("localStorage read unavailable", error); }
@@ -60,6 +62,22 @@ function saveStore(store) {
     students: Array.isArray(store.students) ? store.students : []
   };
   writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
+}
+
+function loadClasses() {
+  if (classStoreCache) return classStoreCache;
+  try {
+    const parsed = JSON.parse(readStorage(CLASS_STORAGE_KEY) || "[]");
+    classStoreCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    classStoreCache = [];
+  }
+  return classStoreCache;
+}
+
+function saveClasses(classes) {
+  classStoreCache = Array.isArray(classes) ? classes : [];
+  writeStorage(CLASS_STORAGE_KEY, JSON.stringify(classStoreCache));
 }
 
 function id(prefix) {
@@ -246,6 +264,70 @@ function renderSchool() {
   });
 }
 
+function renderClasses() {
+  const school = loadSchool();
+  if (!school) {
+    page.innerHTML = '<h2>Classes</h2><p class="muted">Set up the school before creating classes.</p>';
+    return;
+  }
+
+  const sections = school.schoolSections
+    || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : []);
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Classes</h2><p class="muted">Create classes under the school's selected sections.</p></div>
+      <button class="primary-button" id="new-class">New class</button>
+    </div>
+    <div id="class-form"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Class</th><th>Section</th></tr></thead>
+        <tbody id="class-rows"></tbody>
+      </table>
+    </div>`;
+
+  document.querySelector("#class-rows").innerHTML = classes.length
+    ? classes.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.sectionName)}</td></tr>`).join("")
+    : '<tr><td colspan="2" class="empty">No classes yet.</td></tr>';
+
+  document.querySelector("#new-class").addEventListener("click", () => {
+    document.querySelector("#class-form").innerHTML = `
+      <form class="form-card" id="class-create-form">
+        <div class="form-grid">
+          <label>Section
+            <select name="sectionId" required>
+              <option value="">Select section</option>
+              ${sections.map((section) => `<option value="${escapeHtml(section)}">${escapeHtml(section)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Class name<input name="name" placeholder="Primary 1, JSS 1, SS 1" required></label>
+        </div>
+        <div class="form-actions"><button class="primary-button" type="submit">Save class</button></div>
+      </form>`;
+
+    document.querySelector("#class-create-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const sectionName = String(data.get("sectionId") || "").trim();
+      const name = String(data.get("name") || "").trim();
+      if (!sectionName || !name) return;
+      const next = loadClasses();
+      next.push({
+        classId: id("class"),
+        schoolId: school.schoolId,
+        sectionId: `section-${sectionName.toLowerCase().replace(/\\s+/g, "-")}`,
+        sectionName,
+        name,
+        createdAt: new Date().toISOString()
+      });
+      saveClasses(next);
+      renderClasses();
+    });
+  });
+}
+
 function renderStudents() {
   const school = loadSchool();
 
@@ -381,6 +463,8 @@ function render(section) {
     renderSchool();
   } else if (section === "students") {
     renderStudents();
+  } else if (section === "classes") {
+    renderClasses();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
