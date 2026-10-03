@@ -6,7 +6,7 @@ import { InMemoryClassRepository } from "../packages/class/src/in-memory-reposit
 test("authorized user can create and rename a class", async () => {
   const service = new ClassService(new InMemoryClassRepository());
   await service.create(
-    { classId: "cls-1", schoolId: "school-1", name: "SS 1", createdAt: "2026-10-03T08:00:00.000Z" },
+    { classId: "cls-1", schoolId: "school-1", sectionId: "section-1", name: "SS 1", createdAt: "2026-10-03T08:00:00.000Z" },
     { canManage: true, canView: true },
   );
   const updated = await service.rename("cls-1", "SS 1A", { canManage: true, canView: true });
