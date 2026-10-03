@@ -20,5 +20,6 @@ export interface Student {
   name: string;
   classId?: string;
   admissionNumber?: string;
+  gender?: "M" | "F";
   createdAt: string;
 }
