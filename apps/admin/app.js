@@ -858,10 +858,16 @@ function renderAttendanceList(school, classId, date) {
                 <td>${escapeHtml(student.name)}</td>
                 <td>${escapeHtml(student.admissionNumber || "—")}</td>
                 <td>
-                  <select name="status:${escapeHtml(student.studentId)}" required>
-                    <option value="present" ${status === "present" ? "selected" : ""}>Present</option>
-                    <option value="absent" ${status === "absent" ? "selected" : ""}>Absent</option>
-                  </select>
+                  <label class="attendance-check" title="Toggle attendance">
+                    <input
+                      type="checkbox"
+                      name="status:${escapeHtml(student.studentId)}"
+                      value="present"
+                      ${status === "present" ? "checked" : ""}
+                      aria-label="${escapeHtml(student.name)} attendance"
+                    >
+                    <span class="attendance-check-box" aria-hidden="true">✓</span>
+                  </label>
                 </td>
               </tr>`;
             }).join("")}
@@ -887,7 +893,7 @@ function renderAttendanceList(school, classId, date) {
     const now = new Date().toISOString();
 
     for (const student of students) {
-      const status = String(data.get(`status:${student.studentId}`) || "present");
+      const status = data.get(`status:${student.studentId}`) === "present" ? "present" : "absent";
       next.push({
         attendanceId: id("attendance"),
         schoolId: school.schoolId,
