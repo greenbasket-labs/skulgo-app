@@ -599,12 +599,17 @@ function renderStudents() {
       </table>
     </div>`;
 
+  const className = (classId) => {
+    const item = loadClasses().find((entry) => entry.schoolId === school.schoolId && entry.classId === classId);
+    return item ? `${item.name} — ${item.sectionName}` : classId;
+  };
+
   document.querySelector("#student-rows").innerHTML = students.length
-    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "—")}</td><td>${escapeHtml(s.classId || "—")}</td><td>${escapeHtml(s.gender || "—")}</td></tr>`).join("")
+    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "—")}</td><td>${escapeHtml(className(s.classId) || "—")}</td><td>${escapeHtml(s.gender || "—")}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No students yet.</td></tr>';
 
   document.querySelector("#admission-rows").innerHTML = pending.length
-    ? pending.map((a) => `<tr><td>${escapeHtml(a.applicantName)}</td><td>${escapeHtml(a.admissionNumber || "—")}</td><td>${escapeHtml(a.intendedClassId || "—")}</td><td><button class="small-button" data-approve="${a.admissionId}">Approve</button></td></tr>`).join("")
+    ? pending.map((a) => `<tr><td>${escapeHtml(a.applicantName)}</td><td>${escapeHtml(a.admissionNumber || "—")}</td><td>${escapeHtml(className(a.intendedClassId) || "—")}</td><td><button class="small-button" data-approve="${a.admissionId}">Approve</button></td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No pending admissions.</td></tr>';
 
   document.querySelector("#new-admission").addEventListener("click", () => {
