@@ -115,3 +115,9 @@ tr:last-child td { border-bottom:0; }
 .selected-sections { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
 .selected-section { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; background:#f0f1f3; border-radius:7px; font-size:13px; }
 .remove-section { border:0; background:transparent; cursor:pointer; font:inherit; color:#6b7280; padding:0; }
+
+.attendance-check { display:inline-flex !important; align-items:center; justify-content:center; cursor:pointer; }
+.attendance-check input { position:absolute; opacity:0; pointer-events:none; }
+.attendance-check-box { width:24px; height:24px; display:grid; place-items:center; border:1px solid #d1d5db; border-radius:5px; background:#fff; color:transparent; font-size:15px; font-weight:700; line-height:1; }
+.attendance-check input:checked + .attendance-check-box { background:#111827; border-color:#111827; color:#fff; }
+.attendance-check input:focus-visible + .attendance-check-box { outline:2px solid #9ca3af; outline-offset:2px; }
