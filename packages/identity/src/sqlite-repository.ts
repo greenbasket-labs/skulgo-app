@@ -17,6 +17,11 @@ export class IdentityRepository {
       CREATE TABLE IF NOT EXISTS local_schools (
         school_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        school_type TEXT,
+        phone TEXT,
+        email TEXT,
+        address TEXT,
+        logo_url TEXT,
         created_at TEXT NOT NULL
       );
 
@@ -76,8 +81,10 @@ export class IdentityRepository {
   async saveSchool(school: LocalSchool): Promise<void> {
     await this.db.run(
       `INSERT OR REPLACE INTO local_schools
-       (school_id, name, created_at) VALUES (?, ?, ?)`,
-      [school.schoolId, school.name, school.createdAt],
+       (school_id, name, school_type, phone, email, address, logo_url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [school.schoolId, school.name, school.schoolType ?? null, school.phone ?? null,
+        school.email ?? null, school.address ?? null, school.logoUrl ?? null, school.createdAt],
     );
   }
 
