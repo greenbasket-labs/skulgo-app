@@ -24,6 +24,9 @@ export class FeesInMemoryRepository implements FeesRepository {
   async savePayment(payment: PaymentRecord): Promise<void> {
     this.payments.set(payment.paymentId, payment);
   }
+  async getPayment(paymentId: string): Promise<PaymentRecord | undefined> {
+    return this.payments.get(paymentId);
+  }
   async listPayments(schoolId: string, studentId: string): Promise<PaymentRecord[]> {
     return [...this.payments.values()].filter(
       (payment) => payment.schoolId === schoolId && payment.studentId === studentId,
