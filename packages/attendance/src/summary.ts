@@ -29,3 +29,43 @@ export function summarizeAttendance(
     absent,
   };
 }
+
+export function filterAttendanceByPeriod(
+  records: AttendanceRecord[],
+  period: AttendancePeriod,
+  anchorDate: string,
+  termRange?: { start: string; end: string },
+): AttendanceRecord[] {
+  const anchor = new Date(anchorDate);
+  const year = anchor.getUTCFullYear();
+  const month = anchor.getUTCMonth();
+  const day = anchor.getUTCDate();
+
+  let start: Date;
+  let end: Date;
+
+  if (period === "daily") {
+    start = new Date(Date.UTC(year, month, day));
+    end = new Date(Date.UTC(year, month, day + 1));
+  } else if (period === "weekly") {
+    const dayOfWeek = anchor.getUTCDay();
+    start = new Date(Date.UTC(year, month, day - dayOfWeek));
+    end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 7);
+  } else if (period === "monthly") {
+    start = new Date(Date.UTC(year, month, 1));
+    end = new Date(Date.UTC(year, month + 1, 1));
+  } else if (period === "yearly") {
+    start = new Date(Date.UTC(year, 0, 1));
+    end = new Date(Date.UTC(year + 1, 0, 1));
+  } else {
+    if (!termRange) throw new Error("Term range is required for termly attendance");
+    start = new Date(termRange.start);
+    end = new Date(termRange.end);
+  }
+
+  return records.filter((record) => {
+    const date = new Date(record.payload.date);
+    return date >= start && date < end;
+  });
+}
