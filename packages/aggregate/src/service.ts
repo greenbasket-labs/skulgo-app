@@ -17,12 +17,12 @@ export class AggregateService {
         permission,
       );
 
-      if (total.combinedTotal !== undefined) {
-        subjectTotals.push({
-          subjectId,
-          total: total.combinedTotal,
-        });
-      }
+      subjectTotals.push({
+        subjectId,
+        ...(total.combinedTotal !== undefined
+          ? { total: total.combinedTotal }
+          : {}),
+      });
     }
 
     const validTotals = subjectTotals
@@ -32,6 +32,9 @@ export class AggregateService {
     const overallTotal = validTotals.length
       ? validTotals.reduce((sum, value) => sum + value, 0)
       : undefined;
+
+    const subjectsOffered = query.subjectIds.length;
+    const subjectsWithTotal = validTotals.length;
 
     return {
       aggregateId: [
@@ -46,9 +49,13 @@ export class AggregateService {
       classId: query.classId,
       sessionId: query.sessionId,
       termId: query.termId,
-      subjectCount: validTotals.length,
+      subjectsOffered,
+      subjectsWithTotal,
+      subjectsMissingTotal: subjectsOffered - subjectsWithTotal,
       overallTotal,
-      average: validTotals.length ? (overallTotal as number) / validTotals.length : undefined,
+      average: subjectsOffered
+        ? (overallTotal ?? 0) / subjectsOffered
+        : undefined,
       subjectTotals,
     };
   }

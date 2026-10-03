@@ -10,7 +10,9 @@ export interface AggregateResult {
   classId: string;
   sessionId: string;
   termId: string;
-  subjectCount: number;
+  subjectsOffered: number;
+  subjectsWithTotal: number;
+  subjectsMissingTotal: number;
   overallTotal?: number;
   average?: number;
   subjectTotals: AggregateSubjectTotal[];
