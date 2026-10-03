@@ -7,9 +7,7 @@ export interface SchoolProfile {
   address?: string;
   logoUrl?: string;
   createdAt: string;
-  isCurrent?: boolean;
 }
-
 
 export interface AcademicSession {
   sessionId: string;
@@ -25,4 +23,5 @@ export interface AcademicTerm {
   sessionId: string;
   name: string;
   createdAt: string;
+  isCurrent?: boolean;
 }
