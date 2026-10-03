@@ -63,6 +63,7 @@ export class IdentityRepository {
         class_id TEXT NOT NULL,
         admission_number TEXT,
         display_name TEXT NOT NULL,
+        gender TEXT,
         created_at TEXT NOT NULL
       );
 
@@ -76,6 +77,11 @@ export class IdentityRepository {
         UNIQUE (school_id, class_id, subject_id)
       )
     `);
+    try {
+      await this.db.run("ALTER TABLE local_students ADD COLUMN gender TEXT");
+    } catch {
+      // Existing local databases may already contain the column.
+    }
   }
 
   async saveSchool(school: LocalSchool): Promise<void> {
@@ -133,14 +139,15 @@ export class IdentityRepository {
   async saveStudent(item: LocalStudent): Promise<void> {
     await this.db.run(
       `INSERT OR REPLACE INTO local_students
-       (student_id, school_id, class_id, admission_number, display_name, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       (student_id, school_id, class_id, admission_number, display_name, gender, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         item.studentId,
         item.schoolId,
         item.classId,
         item.admissionNumber ?? null,
         item.displayName,
+        item.gender ?? null,
         item.createdAt,
       ],
     );
@@ -204,6 +211,7 @@ export class IdentityRepository {
       class_id: string;
       admission_number?: string;
       display_name: string;
+      gender?: "M" | "F";
       created_at: string;
     }>(
       `SELECT * FROM local_students
@@ -218,6 +226,7 @@ export class IdentityRepository {
       classId: row.class_id,
       admissionNumber: row.admission_number,
       displayName: row.display_name,
+      gender: row.gender,
       createdAt: row.created_at,
     }));
   }
