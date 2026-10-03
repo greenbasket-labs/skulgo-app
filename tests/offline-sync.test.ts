@@ -4,13 +4,35 @@ import test from "node:test";
 import { recordAttendance } from "../packages/attendance/src/service";
 import { ReplicationNode, connectNodes } from "../packages/sync/src/node";
 import { MemoryChangeStore } from "../packages/sync/src/store";
+import { AttendanceRepository } from "../packages/attendance/src/repository";
+import type { LocalRecordStore, LocalSchoolRecord } from "../packages/school-records/src/repository";
+
+class TestRecordStore implements LocalRecordStore {
+  readonly records = new Map<string, LocalSchoolRecord>();
+
+  async put(record: LocalSchoolRecord): Promise<void> {
+    this.records.set(record.recordId, record);
+  }
+
+  async get(recordId: string): Promise<LocalSchoolRecord | undefined> {
+    return this.records.get(recordId);
+  }
+
+  async listByType(schoolId: string, recordType: string): Promise<LocalSchoolRecord[]> {
+    return [...this.records.values()].filter(
+      (record) => record.schoolId === schoolId && record.recordType === recordType,
+    );
+  }
+}
 
 test("teacher records attendance offline, then syncs to admin", async () => {
   const teacherStore = new MemoryChangeStore();
   const teacher = new ReplicationNode("teacher-phone", teacherStore);
   const admin = new ReplicationNode("admin-phone", new MemoryChangeStore());
+  const localStore = new TestRecordStore();
+  const attendanceRepository = new AttendanceRepository(localStore);
 
-  const record = recordAttendance(teacher, {
+  const record = await recordAttendance(teacher, attendanceRepository, {
     schoolId: "school-1",
     teacherUserId: "teacher-1",
     deviceId: "teacher-phone",
@@ -30,6 +52,7 @@ test("teacher records attendance offline, then syncs to admin", async () => {
     status: "present",
   });
 
+  assert.equal((await localStore.get(record.recordId))?.recordId, record.recordId);
   assert.equal(admin.getRecord(record.recordId), undefined);
   assert.equal(teacherStore.pending().length, 1);
 
@@ -72,10 +95,11 @@ test("duplicate delivery is idempotent", () => {
 
 test("teacher cannot record attendance outside their assignment", () => {
   const teacher = new ReplicationNode("teacher-phone", new MemoryChangeStore());
+  const attendanceRepository = new AttendanceRepository(new TestRecordStore());
 
   assert.throws(
     () =>
-      recordAttendance(teacher, {
+      recordAttendance(teacher, attendanceRepository, {
         schoolId: "school-1",
         teacherUserId: "teacher-1",
         deviceId: "teacher-phone",
