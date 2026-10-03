@@ -1,6 +1,10 @@
 import type { RecordChange } from "../../school-records/src/record";
 
-export type DeliveryState = "queued" | "sending" | "acknowledged" | "conflict";
+export type DeliveryState =
+  | "queued"
+  | "sending"
+  | "acknowledged"
+  | "conflict";
 
 export interface StoredChange<T = unknown> {
   change: RecordChange<T>;
@@ -8,6 +12,10 @@ export interface StoredChange<T = unknown> {
   acknowledgedAt?: string;
 }
 
+/**
+ * Synchronous store used by the in-memory reference implementation.
+ * Device runtimes may use the async SQLite adapter in sqlite-store.ts.
+ */
 export interface ChangeStore<T = unknown> {
   save(change: RecordChange<T>): void;
   get(changeId: string): StoredChange<T> | undefined;
