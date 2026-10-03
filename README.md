@@ -1,43 +1,76 @@
 # SkulGo Offline
 
-Offline-first school records platform.
+Offline-first, node-based school records platform.
 
-## Principles
+## Core model
 
-- Local-first: core school operations work without continuous internet.
-- Modular: each domain has one responsibility.
-- Record-oriented: users exchange structured records, not database access.
-- School-owned records: every record is scoped to a school.
-- Sync-ready: transport can be added without changing business modules.
+SkulGo is a network of school-owned devices.
 
-## Identity
+- Primary Admin node: authoritative school records.
+- Trusted Admin nodes: additional phones, laptops, tablets, or other approved devices that replicate official records.
+- Staff nodes: restricted working replicas for teachers, cashiers, and other roles.
+- Parent/Student nodes: restricted views of explicitly permitted records.
 
-Core records use stable identifiers:
+The app installed on a device makes that device a node. The school does not need a permanent cloud database.
 
-- school_id
-- user_id
-- class_id
-- subject_id
-- session_id
-- term_id
-- record_id
+## Synchronization
 
-## Planned apps
+Teacher work is saved locally first.
 
-- admin
-- teacher
-- cashier
-- parent
-- student
+When a connection exists, authorized changes can synchronize live.
 
-## Planned packages
+When there is no connection, changes remain queued and synchronize automatically later.
 
-- identity
-- school-records
-- attendance
-- results
-- finance
-- messaging
-- sync
+The sync engine uses durable acknowledgement, idempotency, versioning, permissions, and conflict detection.
+
+Possible transports include internet, school Wi-Fi, hotspot/local network, nearby/Bluetooth, and QR/manual exchange.
+
+## Academic flow
+
+school -> classes/students/subjects -> teacher assignments -> attendance -> CA -> exams -> results -> report cards
+
+Modules remain separate but communicate through stable IDs and structured records.
+
+A report card consumes the same official CA, exam, attendance, student, subject, session, and term records already maintained by SkulGo.
+
+## Teacher assignment rule
+
+Initially, a school may assign only one teacher to a given class + subject combination.
+
+A teacher receives only:
+
+- assigned classes
+- assigned subjects
+- students belonging to those classes
+- authorized attendance/results work
+- their own relevant history
+
+## Privacy
+
+Admin-private information is not automatically replicated to staff.
+
+Nodes exchange authorized record changes, not unrestricted database access.
+
+## Storage and backup
+
+The initial design uses local SQLite-style storage.
+
+Live school data stays on school-owned nodes.
+
+Optional backups can later be scheduled weekly, monthly, or per term and stored locally or with an external storage provider.
+
+## Repository structure
+
+- apps/ — role-specific applications
+- packages/identity/ — identity and device model
+- packages/school-records/ — common record contracts
+- packages/attendance/ — attendance
+- packages/results/ — CA/exams/results
+- packages/report-card/ — connected report cards
+- packages/finance/ — fees/payments
+- packages/messaging/ — messaging
+- packages/sync/ — node replication
+- database/local-schema/ — local storage foundation
+- docs/architecture/ — system contracts and decisions
 
 This repository is intentionally separate from the existing online SkulGo application.
