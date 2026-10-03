@@ -6,6 +6,7 @@ export interface Admission {
   applicantName: string;
   intendedClassId?: string;
   admissionNumber?: string;
+  gender?: "M" | "F";
   status: AdmissionStatus;
   studentId?: string;
   createdByUserId: string;
