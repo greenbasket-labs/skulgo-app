@@ -308,10 +308,12 @@ function renderSchool() {
       }
     });
 
-    if (!current?.session?.name || !current?.term?.name || !current?.schoolSections?.length) {
-      document.querySelector("#edit-school").click();
-    }
   });
+
+  const current = loadSchool();
+  if (!current?.session?.name || !current?.term?.name || !current?.schoolSections?.length) {
+    document.querySelector("#edit-school").click();
+  }
 }
 
 function renderClasses() {
