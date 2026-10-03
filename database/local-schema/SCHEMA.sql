@@ -8,7 +8,32 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS schools (
   school_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  school_type TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  logo_url TEXT,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS academic_sessions (
+  session_id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  is_current INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (school_id) REFERENCES schools(school_id)
+);
+
+CREATE TABLE IF NOT EXISTS academic_terms (
+  term_id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  is_current INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (school_id) REFERENCES schools(school_id),
+  FOREIGN KEY (session_id) REFERENCES academic_sessions(session_id)
 );
 
 CREATE TABLE IF NOT EXISTS users (
