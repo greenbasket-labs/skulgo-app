@@ -38,6 +38,7 @@ export class AdmissionStudentService {
       name: admission.applicantName,
       classId: admission.intendedClassId,
       admissionNumber: admission.admissionNumber,
+      gender: admission.gender,
       createdAt: now,
     };
 
