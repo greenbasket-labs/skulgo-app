@@ -52,7 +52,15 @@ export class CAService {
     permission: CAPermission,
   ): Promise<ContinuousAssessment> {
     if (!permission.canManage) throw new Error("CA management not permitted");
-    const assessment = await this.repository.getAssessment(record.assessmentName);
+    const assessments = await this.repository.listAssessments(record.schoolId);
+    const assessment = assessments.find((item) =>
+      item.name === record.assessmentName &&
+      item.classId === record.classId &&
+      item.subjectId === record.subjectId &&
+      item.teacherId === record.teacherId &&
+      item.sessionId === record.sessionId &&
+      item.termId === record.termId
+    );
     if (!assessment) throw new Error("Assessment not found");
     if (assessment.schoolId !== record.schoolId || assessment.classId !== record.classId ||
         assessment.subjectId !== record.subjectId || assessment.teacherId !== record.teacherId ||
@@ -71,7 +79,7 @@ export class CAService {
     const saved = {
       ...record,
       maximumScore: assessment.maximumScore,
-      assessmentName: assessment.assessmentId,
+      assessmentName: assessment.name,
       updatedAt: now,
     };
     await this.repository.saveRecord(saved);
