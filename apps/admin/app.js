@@ -112,43 +112,58 @@ function renderSchool() {
         <div class="form-actions">
           <button class="primary-button" type="submit">Save school setup</button>
         </div>
+        <p class="form-message" id="school-save-message" role="status" aria-live="polite"></p>
       </form>`;
 
     document.querySelector("#school-setup-form").addEventListener("submit", (event) => {
       event.preventDefault();
-      const data = new FormData(event.currentTarget);
-      const now = new Date().toISOString();
-      const existing = loadSchool();
-      const schoolId = existing?.schoolId || id("school");
-      const sessionId = existing?.session?.sessionId || id("session");
-      const termId = existing?.term?.termId || id("term");
 
-      saveSchool({
-        schoolId,
-        name: String(data.get("name")).trim(),
-        schoolType: String(data.get("schoolType")).trim(),
-        phone: String(data.get("phone")).trim() || undefined,
-        email: String(data.get("email")).trim() || undefined,
-        address: String(data.get("address")).trim() || undefined,
-        createdAt: existing?.createdAt || now,
-        session: {
-          sessionId,
-          schoolId,
-          name: String(data.get("session")).trim(),
-          createdAt: existing?.session?.createdAt || now,
-          isCurrent: true
-        },
-        term: {
-          termId,
-          schoolId,
-          sessionId,
-          name: String(data.get("term")).trim(),
-          createdAt: existing?.term?.createdAt || now,
-          isCurrent: true
-        }
-      });
+      const form = event.currentTarget;
+      const message = document.querySelector("#school-save-message");
 
-      renderSchool();
+      if (!form.reportValidity()) {
+        message.textContent = "Please complete School name, School type, Academic session, and Current term.";
+        return;
+      }
+
+      try {
+        const data = new FormData(form);
+        const now = new Date().toISOString();
+        const existing = loadSchool();
+        const schoolId = existing?.schoolId || id("school");
+        const sessionId = existing?.session?.sessionId || id("session");
+        const termId = existing?.term?.termId || id("term");
+
+        saveSchool({
+          schoolId,
+          name: String(data.get("name") || "").trim(),
+          schoolType: String(data.get("schoolType") || "").trim(),
+          phone: String(data.get("phone") || "").trim() || undefined,
+          email: String(data.get("email") || "").trim() || undefined,
+          address: String(data.get("address") || "").trim() || undefined,
+          createdAt: existing?.createdAt || now,
+          session: {
+            sessionId,
+            schoolId,
+            name: String(data.get("session") || "").trim(),
+            createdAt: existing?.session?.createdAt || now,
+            isCurrent: true
+          },
+          term: {
+            termId,
+            schoolId,
+            sessionId,
+            name: String(data.get("term") || "").trim(),
+            createdAt: existing?.term?.createdAt || now,
+            isCurrent: true
+          }
+        });
+
+        renderSchool();
+      } catch (error) {
+        message.textContent = "Could not save school setup in this browser. Please try again.";
+        console.error(error);
+      }
     });
   });
 }
