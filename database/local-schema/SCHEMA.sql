@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS students (
   class_id TEXT NOT NULL,
   admission_number TEXT,
   display_name TEXT NOT NULL,
+  gender TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (school_id) REFERENCES schools(school_id),
   FOREIGN KEY (class_id) REFERENCES classes(class_id)
