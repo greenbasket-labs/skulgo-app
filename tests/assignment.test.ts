@@ -95,6 +95,7 @@ test("assignment rejects cross-school references and inactive records", async ()
   await classes.save({
     classId: "class-1",
     schoolId: "school-1",
+    sectionId: "section-1",
     name: "SS 1",
     createdAt: "2026-10-03T08:00:00.000Z",
   });
