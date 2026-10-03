@@ -111,12 +111,24 @@ function renderSchool() {
       <form class="form-card" id="school-setup-form">
         <div class="form-grid">
           <label>School name<input name="name" value="${escapeHtml(current?.name || "")}" required></label>
-          <fieldset class="section-picker">
-            <legend>School sections</legend>
-            <label class="check-option"><input type="checkbox" name="schoolSections" value="Primary" ${((current?.schoolSections || (current?.schoolType === "Primary" || current?.schoolType === "Primary and Secondary" ? ["Primary"] : [])).includes("Primary")) ? "checked" : ""}> Primary</label>
-            <label class="check-option"><input type="checkbox" name="schoolSections" value="Secondary" ${((current?.schoolSections || (current?.schoolType === "Secondary" || current?.schoolType === "Primary and Secondary" ? ["Secondary"] : [])).includes("Secondary")) ? "checked" : ""}> Secondary</label>
-            <small class="field-help">Select one or both sections.</small>
-          </fieldset>
+          <div class="section-picker">
+            <label>School sections
+              <select id="school-section-select">
+                <option value="">Select section</option>
+                <option value="Nursery">Nursery</option>
+                <option value="Primary">Primary</option>
+                <option value="Junior">Junior</option>
+                <option value="Senior">Senior</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </label>
+            <div class="section-add-row">
+              <button type="button" class="small-button" id="add-school-section">Add section</button>
+            </div>
+            <div id="selected-school-sections" class="selected-sections"></div>
+            <input type="hidden" name="schoolSections" id="school-sections-value">
+            <small class="field-help">Add one or more sections.</small>
+          </div>
           <label>Phone<input name="phone" value="${escapeHtml(current?.phone || "")}"></label>
           <label>Email<input name="email" type="email" value="${escapeHtml(current?.email || "")}"></label>
           <label>Address<input name="address" value="${escapeHtml(current?.address || "")}"></label>
@@ -136,6 +148,42 @@ function renderSchool() {
         <p class="form-message" id="school-save-message" role="status" aria-live="polite"></p>
       </form>`;
 
+    const sectionSelect = document.querySelector("#school-section-select");
+    const addSectionButton = document.querySelector("#add-school-section");
+    const selectedSectionsEl = document.querySelector("#selected-school-sections");
+    const sectionsValue = document.querySelector("#school-sections-value");
+    const initialSections = current?.schoolSections
+      || (current?.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : current?.schoolType ? [current.schoolType] : []);
+    let selectedSections = [...initialSections];
+
+    function renderSelectedSections() {
+      sectionsValue.value = JSON.stringify(selectedSections);
+      selectedSectionsEl.innerHTML = selectedSections.length
+        ? selectedSections.map((section) => `<span class="selected-section">${escapeHtml(section)} <button type="button" class="remove-section" data-remove-section="${escapeHtml(section)}" aria-label="Remove ${escapeHtml(section)}">×</button></span>`).join("")
+        : '<span class="field-help">No sections selected.</span>';
+      selectedSectionsEl.querySelectorAll("[data-remove-section]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedSections = selectedSections.filter((section) => section !== button.dataset.removeSection);
+          renderSelectedSections();
+        });
+      });
+    }
+
+    addSectionButton.addEventListener("click", () => {
+      let section = sectionSelect.value;
+      if (!section) return;
+      if (section === "Custom") {
+        const custom = window.prompt("Enter custom school section");
+        section = String(custom || "").trim();
+        if (!section) return;
+      }
+      if (!selectedSections.includes(section)) selectedSections.push(section);
+      sectionSelect.value = "";
+      renderSelectedSections();
+    });
+
+    renderSelectedSections();
+
     document.querySelector("#school-setup-form").addEventListener("submit", (event) => {
       event.preventDefault();
 
@@ -149,7 +197,7 @@ function renderSchool() {
 
       try {
         const data = new FormData(form);
-        const schoolSections = data.getAll("schoolSections").map((value) => String(value));
+        const schoolSections = JSON.parse(String(data.get("schoolSections") || "[]"));
         if (!schoolSections.length) {
           message.textContent = "Select at least one school section.";
           return;
