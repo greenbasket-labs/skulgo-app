@@ -7,11 +7,37 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 3000);
 const dataDir = join(root, "..", "..", ".skulgo-local");
 const studentsFile = join(dataDir, "students.json");
+const schoolFile = join(dataDir, "school.json");
 
 async function ensureStudentStore() {
   await mkdir(dataDir, { recursive: true });
   try { await readFile(studentsFile, "utf8"); }
   catch { await writeFile(studentsFile, JSON.stringify({ admissions: [], students: [] }, null, 2)); }
+}
+
+async function ensureSchoolStore() {
+  await mkdir(dataDir, { recursive: true });
+  try { await readFile(schoolFile, "utf8"); }
+  catch { await writeFile(schoolFile, JSON.stringify(null, null, 2)); }
+}
+
+async function readSchoolStore() {
+  await ensureSchoolStore();
+  try {
+    const parsed = JSON.parse(await readFile(schoolFile, "utf8"));
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSchoolStore(school) {
+  await ensureSchoolStore();
+  if (!school || typeof school !== "object" || !school.schoolId || !school.name) {
+    throw new Error("School setup requires a school id and name.");
+  }
+  await writeFile(schoolFile, JSON.stringify(school, null, 2));
+  return school;
 }
 
 async function readStudentStore() {
@@ -45,6 +71,43 @@ const mime = {
 
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url || "/", "http://localhost").pathname;
+
+  if (pathname === "/api/school") {
+    try {
+      if (req.method === "GET") {
+        const school = await readSchoolStore();
+        res.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store"
+        });
+        res.end(JSON.stringify(school));
+        return;
+      }
+
+      if (req.method === "POST") {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        const school = await saveSchoolStore(JSON.parse(body || "null"));
+        res.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store"
+        });
+        res.end(JSON.stringify(school));
+        return;
+      }
+    } catch (error) {
+      res.writeHead(400, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      res.end(JSON.stringify({ error: error?.message || "School storage error" }));
+      return;
+    }
+
+    res.writeHead(405, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
 
   if (pathname === "/api/students") {
     try {
