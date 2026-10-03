@@ -24,11 +24,12 @@ async function addSubjectTotal(
   ca: InMemoryCARepository,
   subjectId: string,
   total: number,
+  studentId = "student-1",
 ) {
   await ca.saveRecord({
-    caId: `ca-${subjectId}`,
+    caId: `ca-${studentId}-${subjectId}`,
     schoolId: "school-1",
-    studentId: "student-1",
+    studentId,
     classId: "class-1",
     subjectId,
     teacherId: "teacher-1",
@@ -46,15 +47,8 @@ async function addSubjectTotal(
 test("aggregate uses all 9 subjects offered", async () => {
   const { ca, service } = makeService();
   const subjectIds = Array.from({ length: 9 }, (_, i) => `subject-${i + 1}`);
-  for (const [i, subjectId] of subjectIds.entries()) {
-    await addSubjectTotal(ca, subjectId, 100);
-  }
-
-  const result = await service.getAggregate(
-    { ...base, subjectIds },
-    { canView: true },
-  );
-
+  for (const subjectId of subjectIds) await addSubjectTotal(ca, subjectId, 100);
+  const result = await service.getAggregate({ ...base, subjectIds }, { canView: true });
   assert.equal(result.subjectsOffered, 9);
   assert.equal(result.subjectsWithTotal, 9);
   assert.equal(result.subjectsMissingTotal, 0);
@@ -65,15 +59,8 @@ test("aggregate uses all 9 subjects offered", async () => {
 test("aggregate uses all 8 subjects offered", async () => {
   const { ca, service } = makeService();
   const subjectIds = Array.from({ length: 8 }, (_, i) => `subject-${i + 1}`);
-  for (const [i, subjectId] of subjectIds.entries()) {
-    await addSubjectTotal(ca, subjectId, 100);
-  }
-
-  const result = await service.getAggregate(
-    { ...base, subjectIds },
-    { canView: true },
-  );
-
+  for (const subjectId of subjectIds) await addSubjectTotal(ca, subjectId, 100);
+  const result = await service.getAggregate({ ...base, subjectIds }, { canView: true });
   assert.equal(result.subjectsOffered, 8);
   assert.equal(result.subjectsWithTotal, 8);
   assert.equal(result.subjectsMissingTotal, 0);
@@ -84,18 +71,14 @@ test("aggregate uses all 8 subjects offered", async () => {
 test("9 subjects at 900 and 8 subjects at 800 normalize to the same average", async () => {
   const first = makeService();
   const second = makeService();
-
   const nine = Array.from({ length: 9 }, (_, i) => `subject-${i + 1}`);
   const eight = Array.from({ length: 8 }, (_, i) => `subject-${i + 1}`);
-
   for (const subjectId of nine) await addSubjectTotal(first.ca, subjectId, 100);
-  for (const subjectId of eight) await addSubjectTotal(second.ca, subjectId, 100);
-
+  for (const subjectId of eight) await addSubjectTotal(second.ca, subjectId, 100, "student-2");
   const [a, b] = await Promise.all([
     first.service.getAggregate({ ...base, subjectIds: nine }, { canView: true }),
     second.service.getAggregate({ ...base, studentId: "student-2", subjectIds: eight }, { canView: true }),
   ]);
-
   assert.equal(a.overallTotal, 900);
   assert.equal(b.overallTotal, 800);
   assert.equal(a.average, 100);
@@ -106,12 +89,7 @@ test("offered subjects with no recorded total remain visible and count in the de
   const { ca, service } = makeService();
   await addSubjectTotal(ca, "subject-1", 100);
   await addSubjectTotal(ca, "subject-2", 80);
-
-  const result = await service.getAggregate(
-    { ...base, subjectIds: ["subject-1", "subject-2", "subject-3"] },
-    { canView: true },
-  );
-
+  const result = await service.getAggregate({ ...base, subjectIds: ["subject-1", "subject-2", "subject-3"] }, { canView: true });
   assert.equal(result.subjectsOffered, 3);
   assert.equal(result.subjectsWithTotal, 2);
   assert.equal(result.subjectsMissingTotal, 1);
@@ -126,11 +104,7 @@ test("offered subjects with no recorded total remain visible and count in the de
 
 test("aggregate is empty when no subject is offered", async () => {
   const { service } = makeService();
-  const result = await service.getAggregate(
-    { ...base, subjectIds: [] },
-    { canView: true },
-  );
-
+  const result = await service.getAggregate({ ...base, subjectIds: [] }, { canView: true });
   assert.equal(result.subjectsOffered, 0);
   assert.equal(result.subjectsWithTotal, 0);
   assert.equal(result.subjectsMissingTotal, 0);
