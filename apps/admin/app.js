@@ -100,10 +100,18 @@ async function hydrateSchoolStore() {
     if (!response.ok) return false;
 
     const saved = await response.json();
-    if (!saved || typeof saved !== "object" || !saved.schoolId || !saved.name) return false;
+    if (saved && typeof saved === "object" && saved.schoolId && saved.name) {
+      writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
+      return true;
+    }
 
-    writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
-    return true;
+    const local = loadSchool();
+    if (local && typeof local === "object" && local.schoolId && local.name) {
+      await saveSchool(local);
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.warn("Local school store unavailable; using browser storage.", error);
     return false;
