@@ -10,10 +10,16 @@ const base = {
   termId: "term-1",
 };
 
-function aggregate(studentId: string, average: number, subjectsOffered: number): AggregateResult {
+function aggregate(
+  studentId: string,
+  average: number,
+  subjectsOffered: number,
+  classId = base.classId,
+): AggregateResult {
   return {
     aggregateId: studentId + ":aggregate",
     ...base,
+    classId,
     studentId,
     subjectsOffered,
     subjectsWithTotal: subjectsOffered,
@@ -54,6 +60,47 @@ test("rank preserves students with missing totals without assigning a position",
 
   assert.equal(result.entries.find((entry) => entry.studentId === "missing")?.position, undefined);
   assert.equal(result.entries.find((entry) => entry.studentId === "missing")?.subjectsOffered, 3);
+});
+
+test("school rank returns positions 1st, 2nd and 3rd, including ties at those positions", () => {
+  const service = new RankService();
+  const result = service.getSchoolTopPositions(
+    { schoolId: "school-1", sessionId: "session-1", termId: "term-1" },
+    [
+      aggregate("musa", 100, 9, "class-1"),
+      aggregate("aisha", 100, 8, "class-2"),
+      aggregate("fatima", 95, 9, "class-3"),
+      aggregate("ali", 94, 8, "class-1"),
+    ],
+    { canView: true },
+  );
+
+  assert.deepEqual(result.entries.map((entry) => [entry.studentId, entry.position]), [
+    ["musa", 1],
+    ["aisha", 1],
+    ["fatima", 3],
+  ]);
+  assert.equal(result.entries.length, 3);
+});
+
+test("school rank includes every student tied at a displayed position", () => {
+  const service = new RankService();
+  const result = service.getSchoolTopPositions(
+    { schoolId: "school-1", sessionId: "session-1", termId: "term-1" },
+    [
+      aggregate("musa", 100, 9, "class-1"),
+      aggregate("aisha", 100, 8, "class-2"),
+      aggregate("fatima", 100, 9, "class-3"),
+      aggregate("ali", 95, 8, "class-1"),
+    ],
+    { canView: true },
+  );
+
+  assert.deepEqual(result.entries.map((entry) => [entry.studentId, entry.position]), [
+    ["musa", 1],
+    ["aisha", 1],
+    ["fatima", 1],
+  ]);
 });
 
 test("rank rejects viewers without permission", () => {
