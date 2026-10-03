@@ -571,7 +571,7 @@ function renderStudents() {
         <div class="form-grid">
           <label>Full name<input name="name" required></label>
           <label>Admission ID<input name="admissionNumber" readonly placeholder="Generated automatically"></label>
-          <label>Class<input name="classId"></label>
+          <label>Class\n            <select name="classId" required>\n              <option value="">Select class</option>\n              \${loadClasses().filter((item) => item.schoolId === school.schoolId).map((item) => `<option value="\${escapeHtml(item.classId)}">\${escapeHtml(item.name)} — \${escapeHtml(item.sectionName)}</option>`).join("")}\n            </select>\n          </label>
           <label>Gender<select name="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
         </div>
         <div class="form-actions"><button class="primary-button" type="submit">Save admission</button></div>
@@ -581,15 +581,17 @@ function renderStudents() {
       const data = new FormData(event.currentTarget);
       const next = loadStore();
       const schoolAdmissions = next.admissions.filter((a) => a.schoolId === school.schoolId);
-      const className = String(data.get("classId") || "").trim().toUpperCase();
-      const section = className.startsWith("SS") ? "SS" : className.startsWith("JSS") ? "JSS" : "AC";
+      const classId = String(data.get("classId") || "").trim();
+      const selectedClass = loadClasses().find((item) => item.schoolId === school.schoolId && item.classId === classId);
+      if (!selectedClass) return;
+      const section = String(selectedClass.sectionName || "AC").trim().toUpperCase().replace(/\\s+/g, "-");
       const academicYear = String(school.session?.name || new Date().getFullYear()).split("/")[0];
       const admissionNumber = `${school.admissionPrefix || "AC"}/${section}/${academicYear}/${String(6537 + schoolAdmissions.length).padStart(4, "0")}`;
       const admission = {
         admissionId: id("admission"),
         schoolId: school.schoolId,
         applicantName: String(data.get("name")).trim(),
-        intendedClassId: String(data.get("classId")).trim() || undefined,
+        intendedClassId: selectedClass.classId,
         admissionNumber,
         gender: String(data.get("gender")) || undefined,
         status: "PENDING",
