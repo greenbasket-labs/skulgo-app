@@ -255,7 +255,10 @@ function renderStudents() {
       const data = new FormData(event.currentTarget);
       const next = loadStore();
       const schoolAdmissions = next.admissions.filter((a) => a.schoolId === school.schoolId);
-      const admissionNumber = `ADM-${new Date().getFullYear()}-${String(schoolAdmissions.length + 1).padStart(4, "0")}`;
+      const className = String(data.get("classId") || "").trim().toUpperCase();
+      const section = className.startsWith("SS") ? "SS" : className.startsWith("JSS") ? "JSS" : "AC";
+      const academicYear = String(school.session?.name || new Date().getFullYear()).split("/")[0];
+      const admissionNumber = `${school.admissionPrefix || "AC"}/${section}/${academicYear}/${String(6537 + schoolAdmissions.length).padStart(4, "0")}`;
       const admission = {
         admissionId: id("admission"),
         schoolId: school.schoolId,
