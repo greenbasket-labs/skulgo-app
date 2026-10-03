@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { RecordChange, SchoolRecord } from "../packages/school-records/src/record";
 import type { SyncNode } from "../packages/sync/src/model";
-import { MemoryChangeStore, type ChangeStore } from "../packages/sync/src/store";
+import { MemoryChangeStore } from "../packages/sync/src/store";
 import { ReplicationNode } from "../packages/sync/src/node";
 import { connectLocalTransport } from "../packages/sync/src/transport";
 
@@ -52,14 +52,14 @@ test("local transport delivers an authorized school record", async () => {
   );
 
   await sender.flush(transport);
-  assert.equal(receiver.getRecord(change.record.recordId)?.payload.status, "present");
-  assert.equal(sender.getRecord(change.record.recordId)?.payload.status, "present");
+  assert.deepEqual(receiver.getRecord(change.record.recordId)?.payload, { status: "present" });
+  assert.deepEqual(sender.getRecord(change.record.recordId)?.payload, { status: "present" });
 });
 
 test("local transport rejects a cross-school connection", async () => {
   const sender = makeNode(teacher.nodeId);
   const receiver = makeNode(admin.nodeId);
-  const change = sender.saveLocal(makeRecord());
+  sender.saveLocal(makeRecord());
   const otherSchool = { ...admin, schoolId: "school-2" };
 
   const transport = connectLocalTransport(
