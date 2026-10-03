@@ -14,6 +14,7 @@ const labels = {
 const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
 const memoryStorage = new Map();
+let studentStoreCache = null;
 
 function readStorage(key) {
   try { const value = localStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("localStorage read unavailable", error); }
@@ -40,15 +41,25 @@ function saveSchool(school) {
 }
 
 function loadStore() {
+  if (studentStoreCache) return studentStoreCache;
   try {
-    return JSON.parse(readStorage(STUDENT_STORAGE_KEY) || '{"admissions":[],"students":[]}');
+    const parsed = JSON.parse(readStorage(STUDENT_STORAGE_KEY) || '{"admissions":[],"students":[]}');
+    studentStoreCache = {
+      admissions: Array.isArray(parsed.admissions) ? parsed.admissions : [],
+      students: Array.isArray(parsed.students) ? parsed.students : []
+    };
   } catch {
-    return { admissions: [], students: [] };
+    studentStoreCache = { admissions: [], students: [] };
   }
+  return studentStoreCache;
 }
 
 function saveStore(store) {
-  writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(store));
+  studentStoreCache = {
+    admissions: Array.isArray(store.admissions) ? store.admissions : [],
+    students: Array.isArray(store.students) ? store.students : []
+  };
+  writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
 }
 
 function id(prefix) {
@@ -273,6 +284,12 @@ function renderStudents() {
       };
       next.admissions.push(admission);
       saveStore(next);
+
+      const savedAdmission = loadStore().admissions.find((item) => item.admissionId === admission.admissionId);
+      if (!savedAdmission) {
+        throw new Error("Admission was not retained after save.");
+      }
+
       renderStudents();
     });
   });
