@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CAInMemoryRepository } from "../packages/ca/src/in-memory-repository";
-import { ExamInMemoryRepository } from "../packages/exam/src/in-memory-repository";
+import { InMemoryCARepository } from "../packages/ca/src/in-memory-repository";
+import { InMemoryExamRepository } from "../packages/exam/src/in-memory-repository";
 import { ResultsService } from "../packages/results/src/service";
 import { TotalsService } from "../packages/totals/src/service";
 import { GradeService } from "../packages/grade/src/service";
@@ -17,8 +17,8 @@ const queryBase = {
 };
 
 test("report card assembles subject grades, aggregate summary, rank and attendance", async () => {
-  const ca = new CAInMemoryRepository();
-  const exam = new ExamInMemoryRepository();
+  const ca = new InMemoryCARepository();
+  const exam = new InMemoryExamRepository();
   const results = new ResultsService(ca, exam);
   const totals = new TotalsService(results);
   const grades = new GradeService(totals);
@@ -102,7 +102,7 @@ test("report card assembles subject grades, aggregate summary, rank and attendan
 });
 
 test("report card keeps a subject visible when it has no CA or exam total", async () => {
-  const results = new ResultsService(new CAInMemoryRepository(), new ExamInMemoryRepository());
+  const results = new ResultsService(new InMemoryCARepository(), new InMemoryExamRepository());
   const grades = new GradeService(new TotalsService(results));
   const service = new ReportCardService(grades);
 
@@ -129,7 +129,7 @@ test("report card keeps a subject visible when it has no CA or exam total", asyn
 });
 
 test("report card requires permission", async () => {
-  const results = new ResultsService(new CAInMemoryRepository(), new ExamInMemoryRepository());
+  const results = new ResultsService(new InMemoryCARepository(), new InMemoryExamRepository());
   const service = new ReportCardService(new GradeService(new TotalsService(results)));
 
   await assert.rejects(
