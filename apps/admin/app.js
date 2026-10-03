@@ -234,9 +234,7 @@ function renderSchool() {
             createdAt: now
           };
         });
-        const schoolType = schoolSections.length === 2 && schoolSections.includes("Primary") && schoolSections.includes("Senior")
-          ? "Primary and Secondary"
-          : schoolSections[0];
+        const schoolType = schoolSections.length === 1 ? schoolSections[0] : "Multiple Sections";
         const sessionId = existing?.session?.sessionId || id("session");
         const termId = existing?.term?.termId || id("term");
 
