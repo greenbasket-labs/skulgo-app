@@ -577,7 +577,12 @@ function renderStudents() {
         <div class="form-grid">
           <label>Full name<input name="name" required></label>
           <label>Admission ID<input name="admissionNumber" readonly placeholder="Generated automatically"></label>
-          <label>Class\n            <select name="classId" required>\n              <option value="">Select class</option>\n              \${loadClasses().filter((item) => item.schoolId === school.schoolId).map((item) => `<option value="\${escapeHtml(item.classId)}">\${escapeHtml(item.name)} — \${escapeHtml(item.sectionName)}</option>`).join("")}\n            </select>\n          </label>
+          <label>Class
+            <select name="classId" required>
+              <option value="">Select class</option>
+              ${loadClasses().filter((item) => item.schoolId === school.schoolId).map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)} — ${escapeHtml(item.sectionName)}</option>`).join("")}
+            </select>
+          </label>
           <label>Gender<select name="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
         </div>
         <div class="form-actions"><button class="primary-button" type="submit">Save admission</button></div>
