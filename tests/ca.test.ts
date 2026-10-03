@@ -43,8 +43,8 @@ function service() {
   };
   const schoolContract: SchoolContract = {
     getSchool: async () => undefined,
-    getCurrentSession: async () => ({ sessionId: "session-1", schoolId: "school-1", name: "2026/2027", status: "ACTIVE", startDate: "2026-09-01", endDate: "2027-07-31" }),
-    getCurrentTerm: async () => ({ termId: "term-1", sessionId: "session-1", name: "First Term", status: "ACTIVE", startDate: "2026-09-01", endDate: "2026-12-20" }),
+    getCurrentSession: async () => ({ sessionId: "session-1", schoolId: "school-1", name: "2026/2027", createdAt: "2026-09-01T00:00:00.000Z", isCurrent: true }),
+    getCurrentTerm: async () => ({ termId: "term-1", schoolId: "school-1", sessionId: "session-1", name: "First Term", createdAt: "2026-09-01T00:00:00.000Z", isCurrent: true }),
     getAcademicSessions: async () => [],
   };
   return new CAService(new InMemoryCARepository(), assignmentRepository, admissionRepository, schoolContract);
@@ -61,7 +61,7 @@ test("teacher can create an assessment and save a valid score", async () => {
   const record = await s.saveScore({
     caId: "record-1", schoolId: "school-1", studentId: "student-1", classId: "class-1",
     subjectId: "subject-1", teacherId: "teacher-1", sessionId: "session-1", termId: "term-1",
-    assessmentName: assessment.assessmentId, maximumScore: 20, score: 15, date: "2026-10-03",
+    assessmentName: assessment.name, maximumScore: 20, score: 15, date: "2026-10-03",
     createdAt: "2026-10-03T08:00:00.000Z", updatedAt: "2026-10-03T08:00:00.000Z",
   }, { canManage: true, canView: true });
 
