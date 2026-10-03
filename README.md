@@ -74,3 +74,13 @@ Optional backups can later be scheduled weekly, monthly, or per term and stored 
 - docs/architecture/ — system contracts and decisions
 
 This repository is intentionally separate from the existing online SkulGo application.
+
+## Authoritative Admin replication
+
+The Admin node is the authoritative receiver for school-official records. Incoming changes are processed with three safety rules:
+
+1. A change ID already recorded in the Admin inbox is treated as a duplicate and is not applied twice.
+2. A record update is accepted only when its entity version is newer than the official version.
+3. Stale/equal versions are recorded as conflicts and never overwrite the official record.
+
+The SQLite reference implementation uses a transaction-capable database so the official record and inbox receipt can be committed together before the sender receives an acknowledgement.
