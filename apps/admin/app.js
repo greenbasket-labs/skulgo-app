@@ -516,13 +516,16 @@ function renderTeachers() {
       if (!name) return;
       const next = loadTeachers();
       const year = String(school.session?.name || new Date().getFullYear()).split("/")[0];
-      const usedNumbers = next
-        .filter((item) => item.schoolId === school.schoolId)
-        .map((item) => String(item.teacherId || "").match(/(\\d{4})$/)?.[1])
-        .filter(Boolean)
-        .map(Number);
-      const nextNumber = String(Math.max(0, ...usedNumbers, 8764) + 1).padStart(4, "0");
-      const teacherId = `AC/AC/${year}/${nextNumber}`;
+      const usedIds = new Set(
+        next
+          .filter((item) => item.schoolId === school.schoolId)
+          .map((item) => String(item.teacherId || ""))
+      );
+      let teacherId;
+      do {
+        const randomNumber = Math.floor(1000 + Math.random() * 9000);
+        teacherId = `AC/AC/${year}/${String(randomNumber).padStart(4, "0")}`;
+      } while (usedIds.has(teacherId));
       next.push({
         teacherId,
         schoolId: school.schoolId,
