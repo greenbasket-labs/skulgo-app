@@ -57,7 +57,7 @@ export class IdentityService {
     deviceId: string;
     schoolId: string;
     userId: string;
-    nodeType: LocalDevice["nodeType"];
+    nodeType: IdentityDevice["nodeType"];
     isTrusted?: boolean;
     createdAt: string;
   }): Promise<IdentityDevice> {
