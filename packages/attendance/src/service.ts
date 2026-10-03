@@ -1,7 +1,8 @@
 import type { TeacherAssignment } from "../../identity/src/assignments";
 import { teacherCanAccessAssignment } from "../../identity/src/assignments";
-import type { AttendanceRecord, AttendanceStatus } from "./model";
 import type { ReplicationNode } from "../../sync/src/node";
+import type { AttendanceRecord, AttendanceStatus } from "./model";
+import { AttendanceRepository } from "./repository";
 
 export interface CreateAttendanceInput {
   schoolId: string;
@@ -16,10 +17,11 @@ export interface CreateAttendanceInput {
   status: AttendanceStatus;
 }
 
-export function recordAttendance(
+export async function recordAttendance(
   node: ReplicationNode<AttendanceRecord["payload"]>,
+  repository: AttendanceRepository,
   input: CreateAttendanceInput,
-): AttendanceRecord {
+): Promise<AttendanceRecord> {
   if (input.assignment.schoolId !== input.schoolId) {
     throw new Error("Teacher assignment belongs to another school");
   }
@@ -54,6 +56,9 @@ export function recordAttendance(
     },
   };
 
+  // Local domain persistence happens before synchronization.
+  await repository.save(record);
   node.saveLocal(record);
+
   return record;
 }
