@@ -601,7 +601,7 @@ function renderStudents() {
 
   const className = (classId) => {
     const item = loadClasses().find((entry) => entry.schoolId === school.schoolId && entry.classId === classId);
-    return item ? `${item.name} — ${item.sectionName}` : classId;
+    return item ? item.name : classId;
   };
 
   document.querySelector("#student-rows").innerHTML = students.length
