@@ -1,0 +1,15 @@
+{
+  "name": "skulgo-offline",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offline-first, node-based school records platform.",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
