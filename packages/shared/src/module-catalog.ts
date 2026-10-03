@@ -7,6 +7,7 @@ import { SUBJECT_MODULE } from "../../subject/src/manifest";
 import { TEACHER_MODULE } from "../../teacher/src/manifest";
 import { ASSIGNMENT_MODULE } from "../../assignment/src/manifest";
 import { ATTENDANCE_MODULE } from "../../attendance/src/manifest";
+import { CA_MODULE } from "../../ca/src/manifest";
 
 export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   SCHOOL_MODULE,
@@ -16,6 +17,7 @@ export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   TEACHER_MODULE,
   ASSIGNMENT_MODULE,
   ATTENDANCE_MODULE,
+  CA_MODULE,
 ];
 
 export const SKULGO_MODULE_CATALOG = new StaticModuleCatalog(
