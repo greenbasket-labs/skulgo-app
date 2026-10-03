@@ -6,6 +6,7 @@ import { ReplicationNode, connectNodes } from "../packages/sync/src/node";
 import { MemoryChangeStore } from "../packages/sync/src/store";
 import { AttendanceRepository } from "../packages/attendance/src/repository";
 import { IdentityRepository } from "../packages/identity/src/sqlite-repository";
+import type { AttendancePayload } from "../packages/attendance/src/model";
 import type { LocalRecordStore, LocalSchoolRecord } from "../packages/school-records/src/repository";
 
 class FakeIdentityDb {
@@ -48,9 +49,9 @@ class TestRecordStore implements LocalRecordStore {
 }
 
 test("teacher records attendance offline, then syncs to admin", async () => {
-  const teacherStore = new MemoryChangeStore();
-  const teacher = new ReplicationNode("teacher-phone", teacherStore);
-  const admin = new ReplicationNode("admin-phone", new MemoryChangeStore());
+  const teacherStore = new MemoryChangeStore<AttendancePayload>();
+  const teacher = new ReplicationNode<AttendancePayload>("teacher-phone", teacherStore);
+  const admin = new ReplicationNode<AttendancePayload>("admin-phone", new MemoryChangeStore<AttendancePayload>());
   const localStore = new TestRecordStore();
   const attendanceRepository = new AttendanceRepository(localStore);
   const identityDb = new FakeIdentityDb();
@@ -63,15 +64,8 @@ test("teacher records attendance offline, then syncs to admin", async () => {
     schoolId: "school-1",
     teacherUserId: "teacher-1",
     deviceId: "teacher-phone",
-    assignment: {
-      assignmentId: "assignment-1",
-      schoolId: "school-1",
-      teacherUserId: "teacher-1",
-      classId: "ss1",
-      subjectId: "math",
-      createdAt: "2026-10-01T08:00:00.000Z",
-    },
     classId: "ss1",
+    subjectId: "math",
     studentId: "student-1",
     sessionId: "2026-2027",
     termId: "first",
@@ -90,7 +84,7 @@ test("teacher records attendance offline, then syncs to admin", async () => {
 });
 
 test("duplicate delivery is idempotent", () => {
-  const admin = new ReplicationNode("admin-phone", new MemoryChangeStore());
+  const admin = new ReplicationNode<AttendancePayload>("admin-phone", new MemoryChangeStore<AttendancePayload>());
 
   const change = {
     changeId: "change-1",
@@ -119,9 +113,8 @@ test("duplicate delivery is idempotent", () => {
   assert.equal(admin.receive(change).status, "duplicate");
 });
 
-
 test("teacher cannot record attendance outside their assignment", () => {
-  const teacher = new ReplicationNode("teacher-phone", new MemoryChangeStore());
+  const teacher = new ReplicationNode<AttendancePayload>("teacher-phone", new MemoryChangeStore<AttendancePayload>());
   const attendanceRepository = new AttendanceRepository(new TestRecordStore());
   const identityRepository = new IdentityRepository(new FakeIdentityDb());
 
@@ -131,15 +124,8 @@ test("teacher cannot record attendance outside their assignment", () => {
         schoolId: "school-1",
         teacherUserId: "teacher-1",
         deviceId: "teacher-phone",
-        assignment: {
-          assignmentId: "assignment-1",
-          schoolId: "school-1",
-          teacherUserId: "teacher-1",
-          classId: "ss2",
-          subjectId: "math",
-          createdAt: "2026-10-01T08:00:00.000Z",
-        },
         classId: "ss1",
+        subjectId: "math",
         studentId: "student-1",
         sessionId: "2026-2027",
         termId: "first",
