@@ -96,9 +96,9 @@ function renderSchool() {
               <option value="Other" ${current?.schoolType === "Other" ? "selected" : ""}>Other</option>
             </select>
           </label>
-          <label>Phone<input name="phone" value="${escapeHtml(current?.phone || "")}></label>
-          <label>Email<input name="email" type="email" value="${escapeHtml(current?.email || "")}></label>
-          <label>Address<input name="address" value="${escapeHtml(current?.address || "")}></label>
+          <label>Phone<input name="phone" value="${escapeHtml(current?.phone || "")}"></label>
+          <label>Email<input name="email" type="email" value="${escapeHtml(current?.email || "")}"></label>
+          <label>Address<input name="address" value="${escapeHtml(current?.address || "")}"></label>
           <label>Academic session<input name="session" placeholder="2026/2027" value="${escapeHtml(current?.session?.name || "")}" required></label>
           <label>Current term
             <select name="term" required>
