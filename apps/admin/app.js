@@ -960,6 +960,105 @@ function renderAttendanceList(school, classId, date) {
   });
 }
 
+
+const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
+const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
+
+function loadResultsRecords() {
+  try {
+    const parsed = JSON.parse(readStorage(RESULTS_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadGradeScale() {
+  try {
+    const parsed = JSON.parse(readStorage(GRADE_SCALE_STORAGE_KEY) || "null");
+    return parsed && Array.isArray(parsed.bands) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function calculateResultTotal(record) {
+  const ca = Number.isFinite(Number(record.ca)) ? Number(record.ca) : undefined;
+  const exam = Number.isFinite(Number(record.exam)) ? Number(record.exam) : undefined;
+  const values = [ca, exam].filter((value) => value !== undefined);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function calculateResultGrade(total, scale) {
+  if (total === undefined || !scale?.bands?.length) return undefined;
+  const bands = [...scale.bands].sort((a, b) => Number(a.minimumTotal) - Number(b.minimumTotal));
+  return bands.find((band) => total >= Number(band.minimumTotal) && total <= Number(band.maximumTotal))?.label;
+}
+
+function renderResults() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = '<h2>Results</h2><p class="muted">Complete School Setup before viewing results.</p>';
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId && item.status === "ACTIVE");
+  const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
+  const records = loadResultsRecords().filter((item) =>
+    item.schoolId === school.schoolId &&
+    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
+    String(item.termId || "") === String(school.term?.termId || school.term?.name || "")
+  );
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Results</h2><p class="muted">View student CA, exam, total and grade for the current academic period.</p></div>
+    </div>
+    <form class="form-card" id="results-selector">
+      <div class="form-grid">
+        <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Subject<select name="subjectId" required><option value="">Select subject</option>${subjects.map((item) => `<option value="${escapeHtml(item.subjectId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Session<input value="${escapeHtml(school.session.name)}" readonly></label>
+        <label>Term<input value="${escapeHtml(school.term.name)}" readonly></label>
+      </div>
+      <div class="form-actions"><button class="primary-button" type="submit">Load results</button></div>
+    </form>
+    <div id="results-list"></div>`;
+
+  document.querySelector("#results-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const classId = String(data.get("classId") || "");
+    const subjectId = String(data.get("subjectId") || "");
+    const selectedClass = classes.find((item) => item.classId === classId);
+    const selectedSubject = subjects.find((item) => item.subjectId === subjectId);
+    const gradeScale = loadGradeScale();
+
+    if (!selectedClass || !selectedSubject) {
+      document.querySelector("#results-list").innerHTML = '<p class="empty">Select a class and subject.</p>';
+      return;
+    }
+
+    const classStudents = students.filter((student) => student.classId === classId);
+    const rows = classStudents.map((student) => {
+      const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subjectId);
+      const total = record ? calculateResultTotal(record) : undefined;
+      return { student, record, total, grade: calculateResultGrade(total, gradeScale) };
+    });
+
+    document.querySelector("#results-list").innerHTML = `
+      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} — ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} · ${escapeHtml(school.term.name)}</p></div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Student</th><th>Admission number</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody>${rows.length ? rows.map(({student,record,total,grade}) => `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || "—")}</td><td>${record?.ca ?? "—"}</td><td>${record?.exam ?? "—"}</td><td>${total ?? "—"}</td><td>${grade ?? "—"}</td></tr>`).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
+      </table></div>
+      ${rows.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
+      ${records.length && !gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as —.</p>' : ""}
+    `;
+  });
+}
+
 function render(section) {
   const [heading, description] = labels[section];
   title.textContent = heading;
@@ -975,6 +1074,8 @@ function render(section) {
     renderTeachers();
   } else if (section === "attendance") {
     renderAttendance();
+  } else if (section === "results") {
+    renderResults();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
