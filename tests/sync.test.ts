@@ -3,7 +3,7 @@ import test from "node:test";
 import type { RecordChange, SchoolRecord } from "../packages/school-records/src/record";
 import { SyncInMemoryRepository } from "../packages/sync/src/in-memory-repository";
 import { SyncService } from "../packages/sync/src/service";
-import type { SyncNode } from "../packages/sync/src/model";
+import type { SyncNode, SyncEnvelope } from "../packages/sync/src/model";
 
 const admin: SyncNode = { nodeId: "admin-device", schoolId: "school-1", nodeType: "primary_admin", userId: "admin-1" };
 const teacher: SyncNode = { nodeId: "teacher-device", schoolId: "school-1", nodeType: "staff", userId: "teacher-1" };
@@ -34,13 +34,13 @@ test("only prepares records visible to the target node", async () => {
 });
 
 test("applies an envelope idempotently", async () => {
-  const repository = new SyncInMemoryRepository();
-  const service = new SyncService(repository);
+  const service = new SyncService(new SyncInMemoryRepository());
   const queued = await service.queueChange(change, teacher, send);
   const envelope = await service.prepareForNode(queued, admin, send);
   assert.ok(envelope);
-  assert.equal(await service.applyEnvelope(envelope, admin, receive), "APPLIED");
-  assert.equal(await service.applyEnvelope(envelope, admin, receive, record), "DUPLICATE");
+  const verifiedEnvelope: SyncEnvelope = envelope;
+  assert.equal(await service.applyEnvelope(verifiedEnvelope, admin, receive), "APPLIED");
+  assert.equal(await service.applyEnvelope(verifiedEnvelope, admin, receive, record), "DUPLICATE");
 });
 
 test("rejects cross-school envelopes", async () => {
