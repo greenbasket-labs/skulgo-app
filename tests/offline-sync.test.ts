@@ -5,7 +5,29 @@ import { recordAttendance } from "../packages/attendance/src/service";
 import { ReplicationNode, connectNodes } from "../packages/sync/src/node";
 import { MemoryChangeStore } from "../packages/sync/src/store";
 import { AttendanceRepository } from "../packages/attendance/src/repository";
+import { IdentityRepository } from "../packages/identity/src/sqlite-repository";
 import type { LocalRecordStore, LocalSchoolRecord } from "../packages/school-records/src/repository";
+
+class FakeIdentityDb {
+  private readonly rows = new Map<string, any[]>();
+  async run(sql: string, params: unknown[] = []): Promise<void> {
+    if (sql.includes("INSERT INTO local_teacher_assignments")) {
+      const row = { assignment_id: params[0], school_id: params[1], teacher_user_id: params[2], class_id: params[3], subject_id: params[4], created_at: params[5] };
+      this.rows.set("assignments", [...(this.rows.get("assignments") ?? []), row]);
+    }
+    if (sql.includes("INSERT OR REPLACE INTO local_students")) {
+      const row = { student_id: params[0], school_id: params[1], class_id: params[2], admission_number: params[3], display_name: params[4], created_at: params[5] };
+      this.rows.set("students", [...(this.rows.get("students") ?? []), row]);
+    }
+  }
+  async get<T>(_sql: string, params: unknown[] = []): Promise<T | undefined> {
+    const row = (this.rows.get("assignments") ?? []).find((r) => r.school_id === params[0] && r.teacher_user_id === params[1] && r.class_id === params[2] && r.subject_id === params[3]);
+    return row as T | undefined;
+  }
+  async all<T>(_sql: string, params: unknown[] = []): Promise<T[]> {
+    return (this.rows.get("students") ?? []).filter((r) => r.school_id === params[0] && r.class_id === params[1]) as T[];
+  }
+}
 
 class TestRecordStore implements LocalRecordStore {
   readonly records = new Map<string, LocalSchoolRecord>();
@@ -31,8 +53,13 @@ test("teacher records attendance offline, then syncs to admin", async () => {
   const admin = new ReplicationNode("admin-phone", new MemoryChangeStore());
   const localStore = new TestRecordStore();
   const attendanceRepository = new AttendanceRepository(localStore);
+  const identityDb = new FakeIdentityDb();
+  const identityRepository = new IdentityRepository(identityDb);
+  await identityRepository.initialize();
+  await identityRepository.saveTeacherAssignment({ assignmentId: "a1", schoolId: "school-1", teacherUserId: "teacher-1", classId: "ss1", subjectId: "math", createdAt: "2026-10-01T08:00:00.000Z" });
+  await identityRepository.saveStudent({ studentId: "student-1", schoolId: "school-1", classId: "ss1", displayName: "Aisha", createdAt: "2026-10-01T08:00:00.000Z" });
 
-  const record = await recordAttendance(teacher, attendanceRepository, {
+  const record = await recordAttendance(teacher, attendanceRepository, identityRepository, {
     schoolId: "school-1",
     teacherUserId: "teacher-1",
     deviceId: "teacher-phone",
@@ -96,10 +123,11 @@ test("duplicate delivery is idempotent", () => {
 test("teacher cannot record attendance outside their assignment", () => {
   const teacher = new ReplicationNode("teacher-phone", new MemoryChangeStore());
   const attendanceRepository = new AttendanceRepository(new TestRecordStore());
+  const identityRepository = new IdentityRepository(new FakeIdentityDb());
 
   assert.throws(
     () =>
-      recordAttendance(teacher, attendanceRepository, {
+      recordAttendance(teacher, attendanceRepository, identityRepository, {
         schoolId: "school-1",
         teacherUserId: "teacher-1",
         deviceId: "teacher-phone",
