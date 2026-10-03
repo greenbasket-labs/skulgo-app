@@ -14,7 +14,6 @@ export interface LocalUser {
   schoolId: string;
   role: string;
   displayName: string;
-  gender?: "M" | "F";
   createdAt: string;
 }
 
@@ -48,6 +47,7 @@ export interface LocalStudent {
   classId: string;
   admissionNumber?: string;
   displayName: string;
+  gender?: "M" | "F";
   createdAt: string;
 }
 
