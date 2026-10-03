@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 3000);
-const dataDir = join(root, "data");
+const dataDir = join(root, "..", "..", ".skulgo-local");
 const studentsFile = join(dataDir, "students.json");
 
 async function ensureStudentStore() {
