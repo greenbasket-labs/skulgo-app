@@ -559,6 +559,8 @@ function render(section) {
     renderStudents();
   } else if (section === "classes") {
     renderClasses();
+  } else if (section === "subjects") {
+    renderSubjects();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
