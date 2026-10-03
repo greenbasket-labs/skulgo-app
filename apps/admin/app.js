@@ -244,7 +244,7 @@ function renderStudents() {
       <form class="form-card" id="admission-form">
         <div class="form-grid">
           <label>Full name<input name="name" required></label>
-          <label>Admission number<input name="admissionNumber"></label>
+          <label>Admission ID<input name="admissionNumber" readonly placeholder="Generated automatically"></label>
           <label>Class<input name="classId"></label>
           <label>Gender<select name="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
         </div>
@@ -253,19 +253,21 @@ function renderStudents() {
     document.querySelector("#admission-form").addEventListener("submit", (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
+      const next = loadStore();
+      const schoolAdmissions = next.admissions.filter((a) => a.schoolId === school.schoolId);
+      const admissionNumber = `ADM-${new Date().getFullYear()}-${String(schoolAdmissions.length + 1).padStart(4, "0")}`;
       const admission = {
         admissionId: id("admission"),
         schoolId: school.schoolId,
         applicantName: String(data.get("name")).trim(),
         intendedClassId: String(data.get("classId")).trim() || undefined,
-        admissionNumber: String(data.get("admissionNumber")).trim() || undefined,
+        admissionNumber,
         gender: String(data.get("gender")) || undefined,
         status: "PENDING",
         createdByUserId: "local-admin",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      const next = loadStore();
       next.admissions.push(admission);
       saveStore(next);
       renderStudents();
