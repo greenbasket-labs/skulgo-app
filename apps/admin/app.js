@@ -233,7 +233,8 @@ function renderSchool() {
           schoolId,
           name: String(data.get("name") || "").trim(),
           schoolType,
-          schoolSections,
+          schoolSections: sections.map((section) => section.name),
+          sections,
           phone: String(data.get("phone") || "").trim() || undefined,
           email: String(data.get("email") || "").trim() || undefined,
           address: String(data.get("address") || "").trim() || undefined,
@@ -271,8 +272,12 @@ function renderClasses() {
     return;
   }
 
-  const sections = school.schoolSections
-    || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : []);
+  const sections = Array.isArray(school.sections) && school.sections.length
+    ? school.sections
+    : (school.schoolSections || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : [])).map((name) => ({
+        sectionId: `section-${String(name).toLowerCase().replace(/\\s+/g, "-")}`,
+        name
+      }));
   const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
 
   page.innerHTML = `
@@ -299,7 +304,7 @@ function renderClasses() {
           <label>Section
             <select name="sectionId" required>
               <option value="">Select section</option>
-              ${sections.map((section) => `<option value="${escapeHtml(section)}">${escapeHtml(section)}</option>`).join("")}
+              ${sections.map((section) => `<option value="${escapeHtml(section.sectionId)}">${escapeHtml(section.name)}</option>`).join("")}
             </select>
           </label>
           <label>Class name<input name="name" placeholder="Primary 1, JSS 1, SS 1" required></label>
@@ -310,15 +315,16 @@ function renderClasses() {
     document.querySelector("#class-create-form").addEventListener("submit", (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
-      const sectionName = String(data.get("sectionId") || "").trim();
+      const sectionId = String(data.get("sectionId") || "").trim();
       const name = String(data.get("name") || "").trim();
-      if (!sectionName || !name) return;
+      const section = sections.find((item) => item.sectionId === sectionId);
+      if (!sectionId || !section || !name) return;
       const next = loadClasses();
       next.push({
         classId: id("class"),
         schoolId: school.schoolId,
-        sectionId: `section-${sectionName.toLowerCase().replace(/\\s+/g, "-")}`,
-        sectionName,
+        sectionId,
+        sectionName: section.name,
         name,
         createdAt: new Date().toISOString()
       });
