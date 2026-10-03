@@ -82,7 +82,6 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: "Method not allowed" }));
     return;
   }
-  const pathname = new URL(req.url || "/", "http://localhost").pathname;
   const file = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const path = join(root, file);
 
