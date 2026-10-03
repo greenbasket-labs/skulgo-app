@@ -13,6 +13,7 @@ const labels = {
 };
 
 const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
+const SCHOOL_API_PATH = "/api/school";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
 const STUDENT_API_PATH = "/api/students";
 const CLASS_STORAGE_KEY = "skulgo.admin.classes.v1";
@@ -72,7 +73,41 @@ function loadSchool() {
 }
 
 function saveSchool(school) {
-  writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(school));
+  const serialized = JSON.stringify(school);
+  writeStorage(SCHOOL_STORAGE_KEY, serialized);
+
+  return fetch(SCHOOL_API_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: serialized,
+    cache: "no-store"
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error("Local school store rejected the save.");
+    }
+    const saved = await response.json();
+    writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
+    return saved;
+  }).catch((error) => {
+    console.warn("Local school store save failed; browser storage remains available.", error);
+    return school;
+  });
+}
+
+async function hydrateSchoolStore() {
+  try {
+    const response = await fetch(SCHOOL_API_PATH, { cache: "no-store" });
+    if (!response.ok) return false;
+
+    const saved = await response.json();
+    if (!saved || typeof saved !== "object" || !saved.schoolId || !saved.name) return false;
+
+    writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
+    return true;
+  } catch (error) {
+    console.warn("Local school store unavailable; using browser storage.", error);
+    return false;
+  }
 }
 
 function loadStore() {
@@ -234,7 +269,8 @@ const nav = document.querySelectorAll(".nav-item");
 const title = document.querySelector("#page-title");
 const page = document.querySelector("#page");
 
-function renderSchool() {
+async function renderSchool() {
+  await hydrateSchoolStore();
   const school = loadSchool();
 
   page.innerHTML = `
@@ -380,7 +416,7 @@ function renderSchool() {
         const sessionId = existing?.session?.sessionId || id("session");
         const termId = existing?.term?.termId || id("term");
 
-        saveSchool({
+        await saveSchool({
           schoolId,
           name: String(data.get("name") || "").trim(),
           schoolType,
@@ -407,7 +443,7 @@ function renderSchool() {
           }
         });
 
-        renderSchool();
+        await renderSchool();
       } catch (error) {
         message.textContent = `Could not save school setup: ${error?.message || "storage error"}`;
         console.error(error);
