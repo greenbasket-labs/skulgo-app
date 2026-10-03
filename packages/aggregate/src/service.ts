@@ -53,8 +53,8 @@ export class AggregateService {
       subjectsWithTotal,
       subjectsMissingTotal: subjectsOffered - subjectsWithTotal,
       overallTotal,
-      average: subjectsOffered
-        ? (overallTotal ?? 0) / subjectsOffered
+      average: subjectsOffered && overallTotal !== undefined
+        ? overallTotal / subjectsOffered
         : undefined,
       subjectTotals,
     };
