@@ -8,24 +8,8 @@ import type { AdmissionStudentRepository } from "../packages/admission/src/repos
 import type { Student } from "../packages/admission/src/model";
 import type { SchoolContract } from "../packages/school/src/contract";
 
-const assignment: TeachingAssignment = {
-  assignmentId: "assign-1",
-  schoolId: "school-1",
-  teacherId: "teacher-1",
-  classId: "class-1",
-  subjectId: "subject-1",
-  status: "ACTIVE",
-  createdAt: "2026-10-03T08:00:00.000Z",
-};
-
-const student: Student = {
-  studentId: "student-1",
-  schoolId: "school-1",
-  admissionId: "adm-1",
-  name: "Musa",
-  classId: "class-1",
-  createdAt: "2026-10-03T08:00:00.000Z",
-};
+const assignment: TeachingAssignment = { assignmentId:"assign-1", schoolId:"school-1", teacherId:"teacher-1", classId:"class-1", subjectId:"subject-1", status:"ACTIVE", createdAt:"2026-10-03T08:00:00.000Z" };
+const student: Student = { studentId:"student-1", schoolId:"school-1", admissionId:"adm-1", name:"Musa", classId:"class-1", createdAt:"2026-10-03T08:00:00.000Z" };
 
 function service() {
   const assignments = new Map([[assignment.assignmentId, assignment]]);
@@ -43,8 +27,8 @@ function service() {
   };
   const schoolContract: SchoolContract = {
     getSchool: async () => undefined,
-    getCurrentSession: async () => ({ sessionId: "session-1", schoolId: "school-1", name: "2026/2027", createdAt: "2026-09-01T00:00:00.000Z", isCurrent: true }),
-    getCurrentTerm: async () => ({ termId: "term-1", schoolId: "school-1", sessionId: "session-1", name: "First Term", createdAt: "2026-09-01T00:00:00.000Z", isCurrent: true }),
+    getCurrentSession: async () => ({ sessionId:"session-1", schoolId:"school-1", name:"2026/2027", createdAt:"2026-09-01T00:00:00.000Z", isCurrent:true }),
+    getCurrentTerm: async () => ({ termId:"term-1", schoolId:"school-1", sessionId:"session-1", name:"First Term", createdAt:"2026-09-01T00:00:00.000Z", isCurrent:true }),
     getAcademicSessions: async () => [],
   };
   return new CAService(new InMemoryCARepository(), assignmentRepository, admissionRepository, schoolContract);
@@ -53,43 +37,28 @@ function service() {
 test("teacher can create an assessment and save a valid score", async () => {
   const s = service();
   const assessment = await s.createAssessment({
-    assessmentId: "ca-1", schoolId: "school-1", classId: "class-1", subjectId: "subject-1",
-    teacherId: "teacher-1", sessionId: "session-1", termId: "term-1", name: "CA 1",
-    maximumScore: 20, date: "2026-10-03", createdAt: "2026-10-03T08:00:00.000Z",
-  }, { canManage: true, canView: true });
-
+    assessmentId:"ca-1", schoolId:"school-1", classId:"class-1", subjectId:"subject-1", teacherId:"teacher-1", sessionId:"session-1", termId:"term-1", name:"CA 1", maximumScore:20, date:"2026-10-03", createdAt:"2026-10-03T08:00:00.000Z",
+  }, { canManage:true, canView:true });
   const record = await s.saveScore({
-    caId: "record-1", schoolId: "school-1", studentId: "student-1", classId: "class-1",
-    subjectId: "subject-1", teacherId: "teacher-1", sessionId: "session-1", termId: "term-1",
-    assessmentName: assessment.name, maximumScore: 20, score: 15, date: "2026-10-03",
-    createdAt: "2026-10-03T08:00:00.000Z", updatedAt: "2026-10-03T08:00:00.000Z",
-  }, { canManage: true, canView: true });
-
-  assert.equal(record.score, 15);
-  assert.equal(record.maximumScore, 20);
+    caId:"record-1", schoolId:"school-1", studentId:"student-1", classId:"class-1", subjectId:"subject-1", teacherId:"teacher-1", sessionId:"session-1", termId:"term-1", assessmentName:assessment.name, maximumScore:20, score:15, date:"2026-10-03", createdAt:"2026-10-03T08:00:00.000Z", updatedAt:"2026-10-03T08:00:00.000Z",
+  }, { canManage:true, canView:true });
+  assert.equal(record.score,15);
+  assert.equal(record.maximumScore,20);
 });
 
 test("CA rejects scores above the assessment maximum", async () => {
   const s = service();
   await s.createAssessment({
-    assessmentId: "ca-1", schoolId: "school-1", classId: "class-1", subjectId: "subject-1",
-    teacherId: "teacher-1", sessionId: "session-1", termId: "term-1", name: "CA 1",
-    maximumScore: 20, date: "2026-10-03", createdAt: "2026-10-03T08:00:00.000Z",
-  }, { canManage: true, canView: true });
-
+    assessmentId:"ca-1", schoolId:"school-1", classId:"class-1", subjectId:"subject-1", teacherId:"teacher-1", sessionId:"session-1", termId:"term-1", name:"CA 1", maximumScore:20, date:"2026-10-03", createdAt:"2026-10-03T08:00:00.000Z",
+  }, { canManage:true, canView:true });
   await assert.rejects(() => s.saveScore({
-    caId: "record-1", schoolId: "school-1", studentId: "student-1", classId: "class-1",
-    subjectId: "subject-1", teacherId: "teacher-1", sessionId: "session-1", termId: "term-1",
-    assessmentName: "ca-1", maximumScore: 20, score: 21, date: "2026-10-03",
-    createdAt: "2026-10-03T08:00:00.000Z", updatedAt: "2026-10-03T08:00:00.000Z",
-  }, { canManage: true, canView: true }), /Score must be between 0 and the assessment maximum/);
+    caId:"record-1", schoolId:"school-1", studentId:"student-1", classId:"class-1", subjectId:"subject-1", teacherId:"teacher-1", sessionId:"session-1", termId:"term-1", assessmentName:"CA 1", maximumScore:20, score:21, date:"2026-10-03", createdAt:"2026-10-03T08:00:00.000Z", updatedAt:"2026-10-03T08:00:00.000Z",
+  }, { canManage:true, canView:true }), /Score must be between 0 and the assessment maximum/);
 });
 
 test("CA requires permission to manage", async () => {
   const s = service();
   await assert.rejects(() => s.createAssessment({
-    assessmentId: "ca-1", schoolId: "school-1", classId: "class-1", subjectId: "subject-1",
-    teacherId: "teacher-1", sessionId: "session-1", termId: "term-1", name: "CA 1",
-    maximumScore: 20, date: "2026-10-03", createdAt: "2026-10-03T08:00:00.000Z",
-  }, { canManage: false, canView: false }), /CA management not permitted/);
+    assessmentId:"ca-1", schoolId:"school-1", classId:"class-1", subjectId:"subject-1", teacherId:"teacher-1", sessionId:"session-1", termId:"term-1", name:"CA 1", maximumScore:20, date:"2026-10-03", createdAt:"2026-10-03T08:00:00.000Z",
+  }, { canManage:false, canView:false }), /CA management not permitted/);
 });
