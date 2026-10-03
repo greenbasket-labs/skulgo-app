@@ -307,6 +307,10 @@ function renderSchool() {
         console.error(error);
       }
     });
+
+    if (!current?.session?.name || !current?.term?.name || !current?.schoolSections?.length) {
+      document.querySelector("#edit-school").click();
+    }
   });
 }
 
