@@ -456,13 +456,13 @@ function renderTeachers() {
     <div id="teacher-form"></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Teacher</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Teacher ID</th><th>Teacher</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="teacher-rows"></tbody>
       </table>
     </div>`;
   document.querySelector("#teacher-rows").innerHTML = teachers.length
-    ? teachers.map((teacher) => `<tr><td>${escapeHtml(teacher.name)}</td><td>${teacher.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${teacher.status === "ACTIVE" ? `<button class="small-button" data-disable-teacher="${escapeHtml(teacher.teacherId)}">Disable</button>` : "—"}</td></tr>`).join("")
-    : '<tr><td colspan="3" class="empty">No teachers yet.</td></tr>';
+    ? teachers.map((teacher) => `<tr><td>${escapeHtml(teacher.teacherId)}</td><td>${escapeHtml(teacher.name)}</td><td>${teacher.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${teacher.status === "ACTIVE" ? `<button class="small-button" data-disable-teacher="${escapeHtml(teacher.teacherId)}">Disable</button>` : "—"}</td></tr>`).join("")
+    : '<tr><td colspan="4" class="empty">No teachers yet.</td></tr>';
   document.querySelector("#new-teacher").addEventListener("click", () => {
     document.querySelector("#teacher-form").innerHTML = `
       <form class="form-card" id="teacher-create-form">
@@ -476,8 +476,16 @@ function renderTeachers() {
       const name = String(new FormData(event.currentTarget).get("name") || "").trim();
       if (!name) return;
       const next = loadTeachers();
+      const year = String(school.session?.name || new Date().getFullYear()).split("/")[0];
+      const usedNumbers = next
+        .filter((item) => item.schoolId === school.schoolId)
+        .map((item) => String(item.teacherId || "").match(/(\\d{4})$/)?.[1])
+        .filter(Boolean)
+        .map(Number);
+      const nextNumber = String(Math.max(0, ...usedNumbers, 8764) + 1).padStart(4, "0");
+      const teacherId = `AC/ACADEMY/${year}/${nextNumber}`;
       next.push({
-        teacherId: id("teacher"),
+        teacherId,
         schoolId: school.schoolId,
         name,
         status: "ACTIVE",
