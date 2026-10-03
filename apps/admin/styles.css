@@ -110,3 +110,8 @@ tr:last-child td { border-bottom:0; }
 .check-option { display: flex !important; grid-template-columns: none !important; align-items: center; gap: 8px !important; color: #1f2937 !important; }
 .check-option input { width: auto !important; padding: 0 !important; }
 .field-help { color: #6b7280; font-size: 12px; }
+
+.section-add-row { margin-top: 8px; }
+.selected-sections { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+.selected-section { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; background:#f0f1f3; border-radius:7px; font-size:13px; }
+.remove-section { border:0; background:transparent; cursor:pointer; font:inherit; color:#6b7280; padding:0; }
