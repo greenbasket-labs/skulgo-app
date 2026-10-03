@@ -14,6 +14,14 @@ test("teacher records attendance offline, then syncs to admin", async () => {
     schoolId: "school-1",
     teacherUserId: "teacher-1",
     deviceId: "teacher-phone",
+    assignment: {
+      assignmentId: "assignment-1",
+      schoolId: "school-1",
+      teacherUserId: "teacher-1",
+      classId: "ss1",
+      subjectId: "math",
+      createdAt: "2026-10-01T08:00:00.000Z",
+    },
     classId: "ss1",
     studentId: "student-1",
     sessionId: "2026-2027",
@@ -59,4 +67,33 @@ test("duplicate delivery is idempotent", () => {
 
   assert.equal(admin.receive(change).status, "applied");
   assert.equal(admin.receive(change).status, "duplicate");
+});
+
+
+test("teacher cannot record attendance outside their assignment", () => {
+  const teacher = new ReplicationNode("teacher-phone", new MemoryChangeStore());
+
+  assert.throws(
+    () =>
+      recordAttendance(teacher, {
+        schoolId: "school-1",
+        teacherUserId: "teacher-1",
+        deviceId: "teacher-phone",
+        assignment: {
+          assignmentId: "assignment-1",
+          schoolId: "school-1",
+          teacherUserId: "teacher-1",
+          classId: "ss2",
+          subjectId: "math",
+          createdAt: "2026-10-01T08:00:00.000Z",
+        },
+        classId: "ss1",
+        studentId: "student-1",
+        sessionId: "2026-2027",
+        termId: "first",
+        date: "2026-10-01",
+        status: "present",
+      }),
+    /not assigned to this class/,
+  );
 });
