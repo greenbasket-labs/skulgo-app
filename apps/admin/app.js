@@ -98,7 +98,7 @@ function renderSchool() {
       <div class="school-details">
         <h3>School details</h3>
         <dl class="details-grid">
-          <div><dt>School type</dt><dd>${escapeHtml(school.schoolType || "—")}</dd></div>
+          <div><dt>School sections</dt><dd>${escapeHtml((school.schoolSections || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : [])).join(", ") || "—")}</dd></div>
           <div><dt>Phone</dt><dd>${escapeHtml(school.phone || "—")}</dd></div>
           <div><dt>Email</dt><dd>${escapeHtml(school.email || "—")}</dd></div>
           <div><dt>Address</dt><dd>${escapeHtml(school.address || "—")}</dd></div>
@@ -111,15 +111,12 @@ function renderSchool() {
       <form class="form-card" id="school-setup-form">
         <div class="form-grid">
           <label>School name<input name="name" value="${escapeHtml(current?.name || "")}" required></label>
-          <label>School type
-            <select name="schoolType" required>
-              <option value="">Select</option>
-              <option value="Primary" ${current?.schoolType === "Primary" ? "selected" : ""}>Primary</option>
-              <option value="Secondary" ${current?.schoolType === "Secondary" ? "selected" : ""}>Secondary</option>
-              <option value="Primary and Secondary" ${current?.schoolType === "Primary and Secondary" ? "selected" : ""}>Primary and Secondary</option>
-              <option value="Other" ${current?.schoolType === "Other" ? "selected" : ""}>Other</option>
-            </select>
-          </label>
+          <fieldset class="section-picker">
+            <legend>School sections</legend>
+            <label class="check-option"><input type="checkbox" name="schoolSections" value="Primary" ${((current?.schoolSections || (current?.schoolType === "Primary" || current?.schoolType === "Primary and Secondary" ? ["Primary"] : [])).includes("Primary")) ? "checked" : ""}> Primary</label>
+            <label class="check-option"><input type="checkbox" name="schoolSections" value="Secondary" ${((current?.schoolSections || (current?.schoolType === "Secondary" || current?.schoolType === "Primary and Secondary" ? ["Secondary"] : [])).includes("Secondary")) ? "checked" : ""}> Secondary</label>
+            <small class="field-help">Select one or both sections.</small>
+          </fieldset>
           <label>Phone<input name="phone" value="${escapeHtml(current?.phone || "")}"></label>
           <label>Email<input name="email" type="email" value="${escapeHtml(current?.email || "")}"></label>
           <label>Address<input name="address" value="${escapeHtml(current?.address || "")}"></label>
@@ -146,12 +143,20 @@ function renderSchool() {
       const message = document.querySelector("#school-save-message");
 
       if (!form.reportValidity()) {
-        message.textContent = "Please complete School name, School type, Academic session, and Current term.";
+        message.textContent = "Please complete School name, School section, Academic session, and Current term.";
         return;
       }
 
       try {
         const data = new FormData(form);
+        const schoolSections = data.getAll("schoolSections").map((value) => String(value));
+        if (!schoolSections.length) {
+          message.textContent = "Select at least one school section.";
+          return;
+        }
+        const schoolType = schoolSections.length === 2
+          ? "Primary and Secondary"
+          : schoolSections[0];
         const now = new Date().toISOString();
         const existing = loadSchool();
         const schoolId = existing?.schoolId || id("school");
@@ -161,7 +166,8 @@ function renderSchool() {
         saveSchool({
           schoolId,
           name: String(data.get("name") || "").trim(),
-          schoolType: String(data.get("schoolType") || "").trim(),
+          schoolType,
+          schoolSections,
           phone: String(data.get("phone") || "").trim() || undefined,
           email: String(data.get("email") || "").trim() || undefined,
           address: String(data.get("address") || "").trim() || undefined,
