@@ -1059,6 +1059,146 @@ function renderResults() {
   });
 }
 
+
+function renderReportCardReview() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = '<h2>Report card</h2><p class="muted">Complete School Setup before reviewing report cards.</p>';
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId && item.status === "ACTIVE");
+  const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
+  const records = loadResultsRecords().filter((item) =>
+    item.schoolId === school.schoolId &&
+    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
+    String(item.termId || "") === String(school.term?.termId || school.term?.name || "")
+  );
+  const gradeScale = loadGradeScale();
+  const attendance = loadAttendance();
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h2>Report card</h2>
+        <p class="muted">Review a student's complete result for the current academic period.</p>
+      </div>
+    </div>
+    <form class="form-card" id="report-card-selector">
+      <div class="form-grid">
+        <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
+        <label>Session<input value="${escapeHtml(school.session.name)}" readonly></label>
+        <label>Term<input value="${escapeHtml(school.term.name)}" readonly></label>
+      </div>
+      <div class="form-actions"><button class="primary-button" type="submit">Review report card</button></div>
+    </form>
+    <div id="report-card-view"></div>
+  `;
+
+  const classSelect = document.querySelector('#report-card-selector select[name="classId"]');
+  const studentSelect = document.querySelector('#report-card-selector select[name="studentId"]');
+
+  classSelect.addEventListener("change", () => {
+    const classStudents = students.filter((student) => student.classId === classSelect.value);
+    studentSelect.innerHTML = '<option value="">Select student</option>' +
+      classStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)} — ${escapeHtml(student.admissionNumber || "—")}</option>`).join("");
+  });
+
+  document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const classId = String(data.get("classId") || "");
+    const studentId = String(data.get("studentId") || "");
+    const student = students.find((item) => item.studentId === studentId && item.classId === classId);
+    const selectedClass = classes.find((item) => item.classId === classId);
+
+    if (!student || !selectedClass) {
+      document.querySelector("#report-card-view").innerHTML = '<p class="empty">Select a class and student.</p>';
+      return;
+    }
+
+    const classStudents = students.filter((item) => item.classId === classId);
+    const studentTotals = new Map();
+    for (const classStudent of classStudents) {
+      const totals = subjects.map((subject) => {
+        const record = records.find((item) => item.studentId === classStudent.studentId && item.classId === classId && item.subjectId === subject.subjectId);
+        return record ? calculateResultTotal(record) : undefined;
+      }).filter((value) => value !== undefined);
+      studentTotals.set(classStudent.studentId, {
+        overallTotal: totals.length ? totals.reduce((sum, value) => sum + value, 0) : undefined,
+        average: subjects.length && totals.length ? totals.reduce((sum, value) => sum + value, 0) / subjects.length : undefined,
+        subjectsWithTotal: totals.length
+      });
+    }
+
+    const ranked = classStudents
+      .map((item) => ({ student: item, ...(studentTotals.get(item.studentId) || {}) }))
+      .filter((item) => item.average !== undefined)
+      .sort((a, b) => b.average - a.average);
+
+    const current = studentTotals.get(student.studentId) || {};
+    const rankIndex = ranked.findIndex((item) => item.student.studentId === student.studentId);
+    const previous = rankIndex > 0 ? ranked[rankIndex - 1] : undefined;
+    const position = current.average === undefined ? undefined
+      : previous && previous.average === current.average
+        ? previous.position
+        : rankIndex + 1;
+    ranked.forEach((item, index) => {
+      item.position = index + 1;
+      if (index > 0 && item.average === ranked[index - 1].average) item.position = ranked[index - 1].position;
+    });
+    const rankedStudent = ranked.find((item) => item.student.studentId === student.studentId);
+    const finalPosition = rankedStudent?.position ?? position;
+
+    const subjectRows = subjects.map((subject) => {
+      const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subject.subjectId);
+      const total = record ? calculateResultTotal(record) : undefined;
+      return {
+        subject,
+        total,
+        grade: calculateResultGrade(total, gradeScale)
+      };
+    });
+
+    const attendanceRecords = attendance.filter((item) =>
+      item.schoolId === school.schoolId &&
+      item.classId === classId &&
+      item.studentId === student.studentId &&
+      String(item.sessionId || "") === String(school.session?.name || school.session?.sessionId || "") &&
+      String(item.termId || "") === String(school.term?.name || school.term?.termId || "")
+    );
+    const present = attendanceRecords.filter((item) => item.status === "present").length;
+    const absent = attendanceRecords.filter((item) => item.status === "absent").length;
+
+    document.querySelector("#report-card-view").innerHTML = `
+      <div class="section-heading">
+        <div>
+          <h3>${escapeHtml(student.name)}</h3>
+          <p class="muted">${escapeHtml(student.admissionNumber || "—")} · ${escapeHtml(selectedClass.name)} · ${escapeHtml(school.session.name)} · ${escapeHtml(school.term.name)}</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Subject</th><th>Total</th><th>Grade</th></tr></thead>
+          <tbody>${subjectRows.length
+            ? subjectRows.map((row) => `<tr><td>${escapeHtml(row.subject.name)}</td><td>${row.total ?? "—"}</td><td>${escapeHtml(row.grade || "—")}</td></tr>`).join("")
+            : '<tr><td colspan="3" class="empty">No active subjects configured.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="info-grid">
+        <div class="info-card"><span>Overall total</span><strong>${current.overallTotal ?? "—"}</strong></div>
+        <div class="info-card"><span>Average</span><strong>${current.average !== undefined ? current.average.toFixed(2) : "—"}</strong></div>
+        <div class="info-card"><span>Class position</span><strong>${finalPosition ?? "—"}</strong></div>
+        <div class="info-card"><span>Attendance</span><strong>${present} present · ${absent} absent</strong></div>
+      </div>
+      ${!records.some((item) => item.studentId === student.studentId && item.classId === classId) ? '<p class="muted">No result records have been entered for this student yet.</p>' : ""}
+      ${records.some((item) => item.studentId === student.studentId && item.classId === classId) && !gradeScale ? '<p class="muted">Grade scale is not configured, so grades are shown as —.</p>' : ""}
+    `;
+  });
+}
+
 function render(section) {
   const [heading, description] = labels[section];
   title.textContent = heading;
@@ -1076,6 +1216,8 @@ function render(section) {
     renderAttendance();
   } else if (section === "results") {
     renderResults();
+  } else if (section === "report-card") {
+    renderReportCardReview();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
