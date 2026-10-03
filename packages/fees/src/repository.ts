@@ -7,5 +7,6 @@ export interface FeesRepository {
   saveStudentFee(studentFee: StudentFee): Promise<void>;
   listStudentFees(schoolId: string, studentId: string): Promise<StudentFee[]>;
   savePayment(payment: PaymentRecord): Promise<void>;
+  getPayment(paymentId: string): Promise<PaymentRecord | undefined>;
   listPayments(schoolId: string, studentId: string): Promise<PaymentRecord[]>;
 }
