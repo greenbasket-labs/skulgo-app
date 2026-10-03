@@ -636,7 +636,14 @@ function renderStudents() {
       const classId = String(data.get("classId") || "").trim();
       const selectedClass = loadClasses().find((item) => item.schoolId === school.schoolId && item.classId === classId);
       if (!selectedClass) return;
-      const section = String(selectedClass.sectionName || "AC").trim().toUpperCase().replace(/\\s+/g, "-");
+      const sectionName = String(selectedClass.sectionName || "").trim().toUpperCase();
+      const sectionCodes = {
+        NURSERY: "NUR",
+        PRIMARY: "PRI",
+        JUNIOR: "JSS",
+        SENIOR: "SS"
+      };
+      const section = sectionCodes[sectionName] || sectionName.replace(/\\s+/g, "-");
       const academicYear = String(school.session?.name || new Date().getFullYear()).split("/")[0];
       const usedAdmissionNumbers = new Set(
         schoolAdmissions
