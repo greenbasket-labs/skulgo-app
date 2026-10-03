@@ -705,6 +705,175 @@ function renderStudents() {
   });
 }
 
+const ATTENDANCE_STORAGE_KEY = "skulgo.admin.attendance.v1";
+
+function loadAttendance() {
+  try {
+    const parsed = JSON.parse(readStorage(ATTENDANCE_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAttendance(records) {
+  writeStorage(ATTENDANCE_STORAGE_KEY, JSON.stringify(records));
+}
+
+function renderAttendance() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = `
+      <h2>Attendance</h2>
+      <p class="muted">Complete School Setup before recording attendance.</p>
+    `;
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const today = new Date().toISOString().slice(0, 10);
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h2>Attendance</h2>
+        <p class="muted">Record daily student attendance by class.</p>
+      </div>
+    </div>
+
+    <form class="form-card" id="attendance-selector">
+      <div class="form-grid">
+        <label>Class
+          <select name="classId" required>
+            <option value="">Select class</option>
+            ${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Date
+          <input type="date" name="date" value="${today}" required>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Load students</button>
+      </div>
+    </form>
+
+    <div id="attendance-record-form"></div>
+  `;
+
+  document.querySelector("#attendance-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    renderAttendanceList(
+      school,
+      String(data.get("classId") || ""),
+      String(data.get("date") || today)
+    );
+  });
+}
+
+function renderAttendanceList(school, classId, date) {
+  const selectedClass = loadClasses().find(
+    (item) => item.schoolId === school.schoolId && item.classId === classId
+  );
+  const students = loadStudents().filter(
+    (student) => student.schoolId === school.schoolId && student.classId === classId
+  );
+  const records = loadAttendance();
+  const existing = new Map(
+    records
+      .filter((record) =>
+        record.schoolId === school.schoolId &&
+        record.classId === classId &&
+        record.date === date
+      )
+      .map((record) => [record.studentId, record.status])
+  );
+  const container = document.querySelector("#attendance-record-form");
+  if (!container) return;
+
+  if (!selectedClass) {
+    container.innerHTML = '<p class="empty">Select a valid class.</p>';
+    return;
+  }
+
+  if (!students.length) {
+    container.innerHTML = `
+      <div class="form-card">
+        <h3>${escapeHtml(selectedClass.name)}</h3>
+        <p class="muted">No approved students are enrolled in this class.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h3>${escapeHtml(selectedClass.name)}</h3>
+        <p class="muted">${escapeHtml(date)}</p>
+      </div>
+    </div>
+    <form class="form-card" id="attendance-form">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Student</th><th>Admission number</th><th>Attendance</th></tr></thead>
+          <tbody>
+            ${students.map((student) => {
+              const status = existing.get(student.studentId) || "present";
+              return `<tr>
+                <td>${escapeHtml(student.name)}</td>
+                <td>${escapeHtml(student.admissionNumber || "—")}</td>
+                <td>
+                  <select name="status:${escapeHtml(student.studentId)}" required>
+                    <option value="present" ${status === "present" ? "selected" : ""}>Present</option>
+                    <option value="absent" ${status === "absent" ? "selected" : ""}>Absent</option>
+                  </select>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save attendance</button>
+      </div>
+    </form>
+  `;
+
+  document.querySelector("#attendance-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const next = loadAttendance().filter(
+      (record) => !(
+        record.schoolId === school.schoolId &&
+        record.classId === classId &&
+        record.date === date
+      )
+    );
+    const now = new Date().toISOString();
+
+    for (const student of students) {
+      const status = String(data.get(`status:${student.studentId}`) || "present");
+      next.push({
+        attendanceId: id("attendance"),
+        schoolId: school.schoolId,
+        classId,
+        studentId: student.studentId,
+        sessionId: String(school.session?.name || ""),
+        termId: String(school.term?.name || ""),
+        date,
+        status,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    saveAttendance(next);
+    renderAttendanceList(school, classId, date);
+  });
+}
+
 function render(section) {
   const [heading, description] = labels[section];
   title.textContent = heading;
@@ -718,6 +887,8 @@ function render(section) {
     renderSubjects();
   } else if (section === "teachers") {
     renderTeachers();
+  } else if (section === "attendance") {
+    renderAttendance();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
