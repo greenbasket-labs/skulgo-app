@@ -13,29 +13,42 @@ const labels = {
 
 const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
+const memoryStorage = new Map();
+
+function readStorage(key) {
+  try { const value = localStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("localStorage read unavailable", error); }
+  try { const value = sessionStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("sessionStorage read unavailable", error); }
+  return memoryStorage.get(key) ?? null;
+}
+
+function writeStorage(key, value) {
+  try { localStorage.setItem(key, value); return; } catch (error) { console.warn("localStorage write unavailable", error); }
+  try { sessionStorage.setItem(key, value); return; } catch (error) { console.warn("sessionStorage write unavailable", error); }
+  memoryStorage.set(key, value);
+}
 
 function loadSchool() {
   try {
-    return JSON.parse(localStorage.getItem(SCHOOL_STORAGE_KEY) || "null");
+    return JSON.parse(readStorage(SCHOOL_STORAGE_KEY) || "null");
   } catch {
     return null;
   }
 }
 
 function saveSchool(school) {
-  localStorage.setItem(SCHOOL_STORAGE_KEY, JSON.stringify(school));
+  writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(school));
 }
 
 function loadStore() {
   try {
-    return JSON.parse(localStorage.getItem(STUDENT_STORAGE_KEY) || '{"admissions":[],"students":[]}');
+    return JSON.parse(readStorage(STUDENT_STORAGE_KEY) || '{"admissions":[],"students":[]}');
   } catch {
     return { admissions: [], students: [] };
   }
 }
 
 function saveStore(store) {
-  localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(store));
+  writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(store));
 }
 
 function id(prefix) {
@@ -161,7 +174,7 @@ function renderSchool() {
 
         renderSchool();
       } catch (error) {
-        message.textContent = "Could not save school setup in this browser. Please try again.";
+        message.textContent = `Could not save school setup: ${error?.message || "storage error"}`;
         console.error(error);
       }
     });
