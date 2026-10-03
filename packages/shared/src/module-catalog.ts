@@ -11,6 +11,7 @@ import { CA_MODULE } from "../../ca/src/manifest";
 import { EXAM_MODULE } from "../../exam/src/manifest";
 import { RESULTS_MODULE } from "../../results/src/manifest";
 import { TOTALS_MODULE } from "../../totals/src/manifest";
+import { GRADE_MODULE } from "../../grade/src/manifest";
 
 export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   SCHOOL_MODULE,
@@ -24,6 +25,7 @@ export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   EXAM_MODULE,
   RESULTS_MODULE,
   TOTALS_MODULE,
+  GRADE_MODULE,
 ];
 
 export const SKULGO_MODULE_CATALOG = new StaticModuleCatalog(
