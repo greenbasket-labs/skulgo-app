@@ -18,12 +18,13 @@ import { REPORT_CARD_MODULE } from "../../report-card/src/manifest";
 import { FEES_MODULE } from "../../fees/src/manifest";
 import { CASHIER_MODULE } from "../../cashier/src/manifest";
 import { MESSAGING_MODULE } from "../../messaging/src/manifest";
+import { SYNC_MODULE } from "../../sync/src/manifest";
 
 export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   SCHOOL_MODULE, ADMISSION_STUDENT_MODULE, CLASS_MODULE, SUBJECT_MODULE, TEACHER_MODULE,
   ASSIGNMENT_MODULE, ATTENDANCE_MODULE, CA_MODULE, EXAM_MODULE, RESULTS_MODULE,
   TOTALS_MODULE, GRADE_MODULE, AGGREGATE_MODULE, RANK_MODULE, REPORT_CARD_MODULE,
-  FEES_MODULE, CASHIER_MODULE, MESSAGING_MODULE,
+  FEES_MODULE, CASHIER_MODULE, MESSAGING_MODULE, SYNC_MODULE,
 ];
 
 export const SKULGO_MODULE_CATALOG = new StaticModuleCatalog(SKULGO_MODULE_MANIFESTS);
