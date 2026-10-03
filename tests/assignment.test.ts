@@ -24,6 +24,7 @@ test("authorized user can create, list, and disable a teaching assignment", asyn
   await classes.save({
     classId: "class-1",
     schoolId: "school-1",
+    sectionId: "section-1",
     name: "SS 1",
     createdAt: "2026-10-03T08:00:00.000Z",
   });
