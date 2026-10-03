@@ -1,5 +1,6 @@
 import type { SchoolModuleManifest } from "./module-contract";
 import { StaticModuleCatalog } from "./module-registry";
+import { IDENTITY_MODULE } from "../../identity/src/manifest";
 import { SCHOOL_MODULE } from "../../school/src/manifest";
 import { ADMISSION_STUDENT_MODULE } from "../../admission/src/manifest";
 import { CLASS_MODULE } from "../../class/src/manifest";
@@ -22,7 +23,7 @@ import { SYNC_MODULE } from "../../sync/src/manifest";
 import { BACKUP_MODULE } from "../../backup/src/manifest";
 
 export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
-  SCHOOL_MODULE, ADMISSION_STUDENT_MODULE, CLASS_MODULE, SUBJECT_MODULE, TEACHER_MODULE,
+  SCHOOL_MODULE, IDENTITY_MODULE, ADMISSION_STUDENT_MODULE, CLASS_MODULE, SUBJECT_MODULE, TEACHER_MODULE,
   ASSIGNMENT_MODULE, ATTENDANCE_MODULE, CA_MODULE, EXAM_MODULE, RESULTS_MODULE,
   TOTALS_MODULE, GRADE_MODULE, AGGREGATE_MODULE, RANK_MODULE, REPORT_CARD_MODULE,
   FEES_MODULE, CASHIER_MODULE, MESSAGING_MODULE, SYNC_MODULE, BACKUP_MODULE,

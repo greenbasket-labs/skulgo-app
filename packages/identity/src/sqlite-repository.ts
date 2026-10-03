@@ -30,6 +30,7 @@ export class IdentityRepository {
         school_id TEXT NOT NULL,
         role TEXT NOT NULL,
         display_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
         created_at TEXT NOT NULL
       );
 
@@ -39,6 +40,7 @@ export class IdentityRepository {
         user_id TEXT NOT NULL,
         node_type TEXT NOT NULL,
         is_trusted INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
         created_at TEXT NOT NULL,
         last_seen_at TEXT
       );
@@ -82,6 +84,8 @@ export class IdentityRepository {
     } catch {
       // Existing local databases may already contain the column.
     }
+    try { await this.db.run("ALTER TABLE local_users ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'"); } catch {}
+    try { await this.db.run("ALTER TABLE local_devices ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'"); } catch {}
   }
 
   async saveSchool(school: LocalSchool): Promise<void> {
@@ -97,23 +101,24 @@ export class IdentityRepository {
   async saveUser(user: LocalUser): Promise<void> {
     await this.db.run(
       `INSERT OR REPLACE INTO local_users
-       (user_id, school_id, role, display_name, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [user.userId, user.schoolId, user.role, user.displayName, user.createdAt],
+       (user_id, school_id, role, display_name, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [user.userId, user.schoolId, user.role, user.displayName, user.status ?? "ACTIVE", user.createdAt],
     );
   }
 
   async saveDevice(device: LocalDevice): Promise<void> {
     await this.db.run(
       `INSERT OR REPLACE INTO local_devices
-       (device_id, school_id, user_id, node_type, is_trusted, created_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (device_id, school_id, user_id, node_type, is_trusted, status, created_at, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         device.deviceId,
         device.schoolId,
         device.userId,
         device.nodeType,
         device.isTrusted ? 1 : 0,
+        device.status ?? "ACTIVE",
         device.createdAt,
         device.lastSeenAt ?? null,
       ],
@@ -230,4 +235,33 @@ export class IdentityRepository {
       createdAt: row.created_at,
     }));
   }
+
+  async getUser(schoolId: string, userId: string): Promise<LocalUser | undefined> {
+    const row = await this.db.get<{ user_id: string; school_id: string; role: string; display_name: string; status?: "ACTIVE" | "DISABLED"; created_at: string }>(
+      `SELECT * FROM local_users WHERE school_id = ? AND user_id = ?`, [schoolId, userId],
+    );
+    return row ? { userId: row.user_id, schoolId: row.school_id, role: row.role, displayName: row.display_name, status: row.status, createdAt: row.created_at } : undefined;
+  }
+
+  async listUsers(schoolId: string): Promise<LocalUser[]> {
+    const rows = await this.db.all<{ user_id: string; school_id: string; role: string; display_name: string; status?: "ACTIVE" | "DISABLED"; created_at: string }>(
+      `SELECT * FROM local_users WHERE school_id = ? ORDER BY display_name ASC`, [schoolId],
+    );
+    return rows.map((row) => ({ userId: row.user_id, schoolId: row.school_id, role: row.role, displayName: row.display_name, status: row.status, createdAt: row.created_at }));
+  }
+
+  async getDevice(schoolId: string, deviceId: string): Promise<LocalDevice | undefined> {
+    const row = await this.db.get<{ device_id: string; school_id: string; user_id: string; node_type: string; is_trusted: number; status?: "ACTIVE" | "DISABLED"; created_at: string; last_seen_at?: string }>(
+      `SELECT * FROM local_devices WHERE school_id = ? AND device_id = ?`, [schoolId, deviceId],
+    );
+    return row ? { deviceId: row.device_id, schoolId: row.school_id, userId: row.user_id, nodeType: row.node_type, isTrusted: row.is_trusted === 1, status: row.status, createdAt: row.created_at, lastSeenAt: row.last_seen_at } : undefined;
+  }
+
+  async listDevices(schoolId: string): Promise<LocalDevice[]> {
+    const rows = await this.db.all<{ device_id: string; school_id: string; user_id: string; node_type: string; is_trusted: number; status?: "ACTIVE" | "DISABLED"; created_at: string; last_seen_at?: string }>(
+      `SELECT * FROM local_devices WHERE school_id = ? ORDER BY created_at ASC`, [schoolId],
+    );
+    return rows.map((row) => ({ deviceId: row.device_id, schoolId: row.school_id, userId: row.user_id, nodeType: row.node_type, isTrusted: row.is_trusted === 1, status: row.status, createdAt: row.created_at, lastSeenAt: row.last_seen_at }));
+  }
+
 }

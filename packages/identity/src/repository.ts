@@ -14,6 +14,7 @@ export interface LocalUser {
   schoolId: string;
   role: string;
   displayName: string;
+  status?: "ACTIVE" | "DISABLED";
   createdAt: string;
 }
 
@@ -23,6 +24,7 @@ export interface LocalDevice {
   userId: string;
   nodeType: string;
   isTrusted: boolean;
+  status?: "ACTIVE" | "DISABLED";
   createdAt: string;
   lastSeenAt?: string;
 }
