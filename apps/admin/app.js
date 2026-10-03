@@ -633,7 +633,16 @@ function renderStudents() {
       if (!selectedClass) return;
       const section = String(selectedClass.sectionName || "AC").trim().toUpperCase().replace(/\\s+/g, "-");
       const academicYear = String(school.session?.name || new Date().getFullYear()).split("/")[0];
-      const admissionNumber = `${school.admissionPrefix || "AC"}/${section}/${academicYear}/${String(6537 + schoolAdmissions.length).padStart(4, "0")}`;
+      const usedAdmissionNumbers = new Set(
+        schoolAdmissions
+          .map((item) => String(item.admissionNumber || ""))
+          .filter(Boolean)
+      );
+      let admissionNumber;
+      do {
+        const randomNumber = Math.floor(1000 + Math.random() * 9000);
+        admissionNumber = `${school.admissionPrefix || "AC"}/${section}/${academicYear}/${String(randomNumber).padStart(4, "0")}`;
+      } while (usedAdmissionNumbers.has(admissionNumber));
       const admission = {
         admissionId: id("admission"),
         schoolId: school.schoolId,
