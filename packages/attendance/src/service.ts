@@ -1,5 +1,4 @@
-import type { TeacherAssignment } from "../../identity/src/assignments";
-import { teacherCanAccessAssignment } from "../../identity/src/assignments";
+import type { IdentityRepository } from "../../identity/src/sqlite-repository";
 import type { ReplicationNode } from "../../sync/src/node";
 import type { AttendanceRecord, AttendanceStatus } from "./model";
 import { AttendanceRepository } from "./repository";
@@ -8,8 +7,8 @@ export interface CreateAttendanceInput {
   schoolId: string;
   teacherUserId: string;
   deviceId: string;
-  assignment: TeacherAssignment;
   classId: string;
+  subjectId: string;
   studentId: string;
   sessionId: string;
   termId: string;
@@ -19,19 +18,28 @@ export interface CreateAttendanceInput {
 
 export async function recordAttendance(
   node: ReplicationNode<AttendanceRecord["payload"]>,
-  repository: AttendanceRepository,
+  attendanceRepository: AttendanceRepository,
+  identityRepository: IdentityRepository,
   input: CreateAttendanceInput,
 ): Promise<AttendanceRecord> {
-  if (input.assignment.schoolId !== input.schoolId) {
-    throw new Error("Teacher assignment belongs to another school");
+  const assignment = await identityRepository.findTeacherAssignment(
+    input.schoolId,
+    input.teacherUserId,
+    input.classId,
+    input.subjectId,
+  );
+
+  if (!assignment) {
+    throw new Error("Teacher is not assigned to this class and subject");
   }
 
-  if (input.assignment.classId !== input.classId) {
-    throw new Error("Teacher is not assigned to this class");
-  }
+  const students = await identityRepository.listStudents(
+    input.schoolId,
+    input.classId,
+  );
 
-  if (!teacherCanAccessAssignment(input.assignment, input.teacherUserId)) {
-    throw new Error("Teacher is not authorized for this assignment");
+  if (!students.some((student) => student.studentId === input.studentId)) {
+    throw new Error("Student does not belong to this class");
   }
 
   const now = new Date().toISOString();
@@ -56,8 +64,7 @@ export async function recordAttendance(
     },
   };
 
-  // Local domain persistence happens before synchronization.
-  await repository.save(record);
+  await attendanceRepository.save(record);
   node.saveLocal(record);
 
   return record;
