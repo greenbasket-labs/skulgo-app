@@ -1,16 +1,13 @@
-import type { SchoolRecord } from "../../school-records/src/record";
-
-export interface AssessmentPayload {
-  score: number;
-  maxScore: number;
+export interface ResultView {
+  resultId: string;
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  subjectId: string;
+  sessionId: string;
+  termId: string;
+  caRecords: ResultCARecord[];
+  examRecords: ResultExamRecord[];
 }
-
-export interface SubjectResultPayload {
-  ca?: AssessmentPayload;
-  exam?: AssessmentPayload;
-  total?: number;
-  grade?: string;
-}
-
-export type AssessmentRecord = SchoolRecord<AssessmentPayload>;
-export type SubjectResultRecord = SchoolRecord<SubjectResultPayload>;
+export interface ResultCARecord { caId: string; assessmentName: string; score: number; maximumScore: number; date: string; }
+export interface ResultExamRecord { examScoreId: string; examId: string; examName: string; score: number; maximumScore: number; date: string; }
