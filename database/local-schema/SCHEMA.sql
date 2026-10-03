@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS records (
   term_id TEXT,
   class_id TEXT,
   subject_id TEXT,
+  student_id TEXT,
   entity_version INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
