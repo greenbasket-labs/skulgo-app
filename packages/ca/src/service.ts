@@ -27,8 +27,14 @@ export class CAService {
     if (!assessment.name.trim()) throw new Error("Assessment name is required");
     this.validateMaximum(assessment.maximumScore);
 
-    const assignment = await this.assignmentRepository.get(assessment.teacherId + ":" + assessment.classId + ":" + assessment.subjectId);
-    if (!assignment || assignment.status !== "ACTIVE" || assignment.schoolId !== assessment.schoolId) {
+    const assignments = await this.assignmentRepository.list(assessment.schoolId);
+    const assignment = assignments.find((item) =>
+      item.teacherId === assessment.teacherId &&
+      item.classId === assessment.classId &&
+      item.subjectId === assessment.subjectId &&
+      item.status === "ACTIVE"
+    );
+    if (!assignment) {
       throw new Error("Teacher is not assigned to this class and subject");
     }
     if (assignment.teacherId !== assessment.teacherId) {
