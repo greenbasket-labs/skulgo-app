@@ -1,6 +1,7 @@
 export interface AdmissionForm {
   studentFullName: string;
   admissionNumber?: string;
+  gender?: "M" | "F";
   classId: string;
 }
 
