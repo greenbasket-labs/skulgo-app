@@ -1,12 +1,9 @@
 import type { SchoolModuleManifest } from "../../shared/src/module-contract";
 
-export const ADMISSION_MODULE: SchoolModuleManifest = {
-  moduleId: "admission",
+export const ADMISSION_STUDENT_MODULE: SchoolModuleManifest = {
+  moduleId: "admission-student",
   version: "1.0.0",
-  displayName: "Admission",
+  displayName: "Admission / Student",
   status: "available",
-  dependencies: [
-    { moduleId: "school", contractVersion: "1.0.0", required: true },
-    { moduleId: "student", contractVersion: "1.0.0", required: true },
-  ],
+  dependencies: [{ moduleId: "school", contractVersion: "1.0.0", required: true }],
 };
