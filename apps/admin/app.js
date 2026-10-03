@@ -220,12 +220,23 @@ function renderSchool() {
           message.textContent = "Select at least one school section.";
           return;
         }
-        const schoolType = schoolSections.length === 2
-          ? "Primary and Secondary"
-          : schoolSections[0];
         const now = new Date().toISOString();
         const existing = loadSchool();
         const schoolId = existing?.schoolId || id("school");
+        const existingSections = Array.isArray(existing?.sections) ? existing.sections : [];
+        const sections = schoolSections.map((name) => {
+          const existingSection = existingSections.find((section) => section.name === name);
+          return existingSection || {
+            sectionId: id("section"),
+            schoolId,
+            name,
+            type: ["Nursery", "Primary", "Junior", "Senior"].includes(name) ? name : "Custom",
+            createdAt: now
+          };
+        });
+        const schoolType = schoolSections.length === 2 && schoolSections.includes("Primary") && schoolSections.includes("Senior")
+          ? "Primary and Secondary"
+          : schoolSections[0];
         const sessionId = existing?.session?.sessionId || id("session");
         const termId = existing?.term?.termId || id("term");
 
