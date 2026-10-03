@@ -15,10 +15,12 @@ const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
 const CLASS_STORAGE_KEY = "skulgo.admin.classes.v1";
 const SUBJECT_STORAGE_KEY = "skulgo.admin.subjects.v1";
+const TEACHER_STORAGE_KEY = "skulgo.admin.teachers.v1";
 const memoryStorage = new Map();
 let studentStoreCache = null;
 let classStoreCache = null;
 let subjectStoreCache = null;
+let teacherStoreCache = null;
 
 function readStorage(key) {
   try { const value = localStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("localStorage read unavailable", error); }
@@ -96,6 +98,22 @@ function loadSubjects() {
 function saveSubjects(subjects) {
   subjectStoreCache = Array.isArray(subjects) ? subjects : [];
   writeStorage(SUBJECT_STORAGE_KEY, JSON.stringify(subjectStoreCache));
+}
+
+function loadTeachers() {
+  if (teacherStoreCache) return teacherStoreCache;
+  try {
+    const parsed = JSON.parse(readStorage(TEACHER_STORAGE_KEY) || "[]");
+    teacherStoreCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    teacherStoreCache = [];
+  }
+  return teacherStoreCache;
+}
+
+function saveTeachers(teachers) {
+  teacherStoreCache = Array.isArray(teachers) ? teachers : [];
+  writeStorage(TEACHER_STORAGE_KEY, JSON.stringify(teacherStoreCache));
 }
 
 function id(prefix) {
@@ -422,6 +440,65 @@ function renderSubjects() {
   });
 }
 
+
+function renderTeachers() {
+  const school = loadSchool();
+  if (!school) {
+    page.innerHTML = '<h2>Teachers</h2><p class="muted">Set up the school before creating teachers.</p>';
+    return;
+  }
+  const teachers = loadTeachers().filter((item) => item.schoolId === school.schoolId);
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Teachers</h2><p class="muted">Manage the teachers working at this school.</p></div>
+      <button class="primary-button" id="new-teacher">New teacher</button>
+    </div>
+    <div id="teacher-form"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Teacher</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="teacher-rows"></tbody>
+      </table>
+    </div>`;
+  document.querySelector("#teacher-rows").innerHTML = teachers.length
+    ? teachers.map((teacher) => `<tr><td>${escapeHtml(teacher.name)}</td><td>${teacher.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${teacher.status === "ACTIVE" ? `<button class="small-button" data-disable-teacher="${escapeHtml(teacher.teacherId)}">Disable</button>` : "—"}</td></tr>`).join("")
+    : '<tr><td colspan="3" class="empty">No teachers yet.</td></tr>';
+  document.querySelector("#new-teacher").addEventListener("click", () => {
+    document.querySelector("#teacher-form").innerHTML = `
+      <form class="form-card" id="teacher-create-form">
+        <div class="form-grid">
+          <label>Teacher name<input name="name" placeholder="Teacher full name" required></label>
+        </div>
+        <div class="form-actions"><button class="primary-button" type="submit">Save teacher</button></div>
+      </form>`;
+    document.querySelector("#teacher-create-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = String(new FormData(event.currentTarget).get("name") || "").trim();
+      if (!name) return;
+      const next = loadTeachers();
+      next.push({
+        teacherId: id("teacher"),
+        schoolId: school.schoolId,
+        name,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString()
+      });
+      saveTeachers(next);
+      renderTeachers();
+    });
+  });
+  document.querySelectorAll("[data-disable-teacher]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = loadTeachers();
+      const teacher = next.find((item) => item.teacherId === button.dataset.disableTeacher && item.schoolId === school.schoolId);
+      if (!teacher) return;
+      teacher.status = "DISABLED";
+      saveTeachers(next);
+      renderTeachers();
+    });
+  });
+}
+
 function renderStudents() {
   const school = loadSchool();
 
@@ -561,6 +638,8 @@ function render(section) {
     renderClasses();
   } else if (section === "subjects") {
     renderSubjects();
+  } else if (section === "teachers") {
+    renderTeachers();
   } else {
     page.innerHTML = `
       <h2>${description}</h2>
