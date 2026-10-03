@@ -15,6 +15,7 @@ import { GRADE_MODULE } from "../../grade/src/manifest";
 import { AGGREGATE_MODULE } from "../../aggregate/src/manifest";
 import { RANK_MODULE } from "../../rank/src/manifest";
 import { REPORT_CARD_MODULE } from "../../report-card/src/manifest";
+import { FEES_MODULE } from "../../fees/src/manifest";
 
 export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   SCHOOL_MODULE,
@@ -32,6 +33,7 @@ export const SKULGO_MODULE_MANIFESTS: SchoolModuleManifest[] = [
   AGGREGATE_MODULE,
   RANK_MODULE,
   REPORT_CARD_MODULE,
+  FEES_MODULE,
 ];
 
 export const SKULGO_MODULE_CATALOG = new StaticModuleCatalog(
