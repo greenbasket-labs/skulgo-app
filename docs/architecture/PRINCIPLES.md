@@ -2,34 +2,50 @@
 
 ## 1. Local first
 
-A user must be able to create and inspect the records needed for their role without a network connection.
+Core school operations work without continuous internet. Each node has local storage for the data its role is authorized to use.
 
-## 2. Record ownership
+## 2. Admin is the school authority
 
-The school is the authority for official school records. A teacher or cashier may create a record, but submission does not automatically make it an official school record.
+A school may have one primary admin node and any number of additional trusted admin devices.
 
-## 3. Explicit submission
+Trusted admin nodes replicate the official school state.
 
-A record moves through a lifecycle:
+## 3. Staff are restricted working nodes
 
-created -> pending -> sent -> received -> accepted/rejected
+Teachers and cashiers do not receive unrestricted school data. They receive only the classes, subjects, students, and records required for their assignments.
 
-The original local record remains available until delivery is confirmed.
+## 4. Live when connected, delayed when offline
 
-## 4. Transport independence
+A teacher can record work without a network. When a connection becomes available, SkulGo automatically synchronizes queued changes.
 
-Business modules must not depend directly on HTTP, Bluetooth, Wi-Fi, QR, or any other transport.
+## 5. Durable acknowledgement
 
-The sync module owns transport.
+A record is considered safely delivered only after the receiving trusted node durably stores it and acknowledges the change.
 
-## 5. Least privilege
+## 6. Replicate records, never database access
 
-Each app receives only the school data and actions required by its role.
+Nodes exchange structured changes. A device never receives another device's unrestricted database.
 
-## 6. Stable identity
+## 7. Directional privacy
 
-Human-readable names can change. Internal IDs should remain stable.
+Admin can see authorized staff activity, while admin-private information remains private. Staff do not automatically receive the admin's entire activity or school database.
 
-## 7. Deterministic records
+## 8. One teacher per class + subject
 
-A submitted record should contain enough identity and metadata to determine its school, author, academic context, type, and unique identity without relying on hidden server state.
+The initial academic assignment rule is unique per school, class, and subject. This removes ambiguity when a teacher records attendance or scores.
+
+## 9. Stable identity
+
+Core records use stable IDs: school_id, user_id, device_id, class_id, subject_id, student_id, session_id, term_id, record_id, and change_id.
+
+## 10. Modules communicate through contracts
+
+Attendance, results, finance, messaging, and report cards remain separate modules but share stable identifiers and structured records.
+
+## 11. Report cards are downstream, not isolated
+
+Report cards consume the official records produced by attendance and results plus school configuration. The same data should not be entered again just to produce a report card.
+
+## 12. Backup is optional but durable
+
+Backups can be scheduled weekly, monthly, or by term. Backup storage is separate from live school synchronization and may use local storage or a provider such as Google Drive.
