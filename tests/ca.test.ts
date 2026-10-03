@@ -30,7 +30,7 @@ const student: Student = {
 function service() {
   const assignments = new Map([[assignment.assignmentId, assignment]]);
   const assignmentRepository: AssignmentRepository = {
-    save: async (item) => assignments.set(item.assignmentId, item),
+    save: async (item) => { assignments.set(item.assignmentId, item); },
     get: async () => assignment,
     list: async () => [assignment],
   };
@@ -38,7 +38,7 @@ function service() {
   const admissionRepository: AdmissionStudentRepository = {
     saveAdmission: async () => {},
     getAdmission: async () => undefined,
-    saveStudent: async (item) => students.set(item.studentId, item),
+    saveStudent: async (item) => { students.set(item.studentId, item); },
     getStudent: async (id) => students.get(id),
   };
   const schoolContract: SchoolContract = {
