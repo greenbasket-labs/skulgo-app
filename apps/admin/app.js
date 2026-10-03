@@ -97,7 +97,7 @@ function saveStore(store) {
   const serialized = JSON.stringify(studentStoreCache);
   writeStorage(STUDENT_STORAGE_KEY, serialized);
 
-  fetch(STUDENT_API_PATH, {
+  return fetch(STUDENT_API_PATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: serialized,
@@ -112,8 +112,10 @@ function saveStore(store) {
       students: Array.isArray(saved.students) ? saved.students : []
     };
     writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
+    return studentStoreCache;
   }).catch((error) => {
     console.warn("Local student store save failed; browser storage remains available.", error);
+    return studentStoreCache;
   });
 }
 
@@ -707,7 +709,7 @@ function renderStudentsFromStore() {
         </div>
         <div class="form-actions"><button class="primary-button" type="submit">Save admission</button></div>
       </form>`;
-    document.querySelector("#admission-form").addEventListener("submit", (event) => {
+    document.querySelector("#admission-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
       const next = loadStore();
@@ -747,7 +749,7 @@ function renderStudentsFromStore() {
         updatedAt: new Date().toISOString()
       };
       next.admissions.push(admission);
-      saveStore(next);
+      await saveStore(next);
 
       const savedAdmission = loadStore().admissions.find((item) => item.admissionId === admission.admissionId);
       if (!savedAdmission) {
@@ -778,8 +780,7 @@ function renderStudentsFromStore() {
       admission.status = "APPROVED";
       admission.studentId = studentId;
       admission.updatedAt = now;
-      saveStore(next);
-      renderStudents();
+      saveStore(next).then(() => renderStudents());
     });
   });
 }
