@@ -23,15 +23,42 @@ let subjectStoreCache = null;
 let teacherStoreCache = null;
 
 function readStorage(key) {
-  try { const value = localStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("localStorage read unavailable", error); }
-  try { const value = sessionStorage.getItem(key); if (value !== null) return value; } catch (error) { console.warn("sessionStorage read unavailable", error); }
+  try {
+    const value = localStorage.getItem(key);
+    if (value !== null) return value;
+  } catch (error) {
+    console.warn("localStorage read unavailable", error);
+  }
+  try {
+    const value = sessionStorage.getItem(key);
+    if (value !== null) return value;
+  } catch (error) {
+    console.warn("sessionStorage read unavailable", error);
+  }
   return memoryStorage.get(key) ?? null;
 }
 
 function writeStorage(key, value) {
-  try { localStorage.setItem(key, value); return; } catch (error) { console.warn("localStorage write unavailable", error); }
-  try { sessionStorage.setItem(key, value); return; } catch (error) { console.warn("sessionStorage write unavailable", error); }
-  memoryStorage.set(key, value);
+  let saved = false;
+  try {
+    localStorage.setItem(key, value);
+    saved = localStorage.getItem(key) === value;
+  } catch (error) {
+    console.warn("localStorage write unavailable", error);
+  }
+
+  try {
+    sessionStorage.setItem(key, value);
+    if (sessionStorage.getItem(key) === value) saved = true;
+  } catch (error) {
+    console.warn("sessionStorage write unavailable", error);
+  }
+
+  if (!saved) {
+    memoryStorage.set(key, value);
+  }
+
+  return saved;
 }
 
 function loadSchool() {
@@ -65,7 +92,13 @@ function saveStore(store) {
     admissions: Array.isArray(store.admissions) ? store.admissions : [],
     students: Array.isArray(store.students) ? store.students : []
   };
-  writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
+
+  const serialized = JSON.stringify(studentStoreCache);
+  const saved = writeStorage(STUDENT_STORAGE_KEY, serialized);
+
+  if (!saved && readStorage(STUDENT_STORAGE_KEY) !== serialized) {
+    throw new Error("Student records could not be persisted in browser storage.");
+  }
 }
 
 function loadClasses() {
