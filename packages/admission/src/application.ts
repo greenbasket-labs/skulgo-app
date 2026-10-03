@@ -18,6 +18,7 @@ export function createAdmissionFromForm(
     applicantName: form.studentFullName.trim(),
     intendedClassId: form.classId,
     admissionNumber: form.admissionNumber?.trim() || undefined,
+    gender: form.gender,
     status: "PENDING",
     createdByUserId,
     createdAt: now,
