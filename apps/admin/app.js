@@ -13,6 +13,7 @@ const labels = {
 
 const SCHOOL_STORAGE_KEY = "skulgo.admin.school.v1";
 const STUDENT_STORAGE_KEY = "skulgo.admin.admission-students.v1";
+const STUDENT_API_PATH = "/api/students";
 const CLASS_STORAGE_KEY = "skulgo.admin.classes.v1";
 const SUBJECT_STORAGE_KEY = "skulgo.admin.subjects.v1";
 const TEACHER_STORAGE_KEY = "skulgo.admin.teachers.v1";
@@ -94,10 +95,46 @@ function saveStore(store) {
   };
 
   const serialized = JSON.stringify(studentStoreCache);
-  const saved = writeStorage(STUDENT_STORAGE_KEY, serialized);
+  writeStorage(STUDENT_STORAGE_KEY, serialized);
 
-  if (!saved && readStorage(STUDENT_STORAGE_KEY) !== serialized) {
-    throw new Error("Student records could not be persisted in browser storage.");
+  fetch(STUDENT_API_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: serialized,
+    cache: "no-store"
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error("Local student store rejected the save.");
+    }
+    const saved = await response.json();
+    studentStoreCache = {
+      admissions: Array.isArray(saved.admissions) ? saved.admissions : [],
+      students: Array.isArray(saved.students) ? saved.students : []
+    };
+    writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
+  }).catch((error) => {
+    console.warn("Local student store save failed; browser storage remains available.", error);
+  });
+}
+
+async function hydrateStudentStore() {
+  try {
+    const response = await fetch(STUDENT_API_PATH, { cache: "no-store" });
+    if (!response.ok) return false;
+    const saved = await response.json();
+    const serverStore = {
+      admissions: Array.isArray(saved.admissions) ? saved.admissions : [],
+      students: Array.isArray(saved.students) ? saved.students : []
+    };
+    const local = loadStore();
+    if (serverStore.admissions.length || serverStore.students.length || (!local.admissions.length && !local.students.length)) {
+      studentStoreCache = serverStore;
+      writeStorage(STUDENT_STORAGE_KEY, JSON.stringify(studentStoreCache));
+    }
+    return true;
+  } catch (error) {
+    console.warn("Local student store unavailable; using browser storage.", error);
+    return false;
   }
 }
 
@@ -583,6 +620,15 @@ function renderTeachers() {
 }
 
 function renderStudents() {
+  hydrateStudentStore().then(() => {
+    if (document.querySelector("#page-title")?.textContent === "Students") {
+      renderStudentsFromStore();
+    }
+  });
+  renderStudentsFromStore();
+}
+
+function renderStudentsFromStore() {
   const school = loadSchool();
 
   if (!school) {
