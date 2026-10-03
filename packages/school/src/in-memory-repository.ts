@@ -23,7 +23,8 @@ export class InMemorySchoolRepository implements SchoolRepository {
   }
 
   async getCurrentSession(schoolId: string): Promise<AcademicSession | undefined> {
-    return this.listSessions(schoolId).find((session) => session.isCurrent === true);
+    const sessions = await this.listSessions(schoolId);
+    return sessions.find((session) => session.isCurrent === true);
   }
 
   async listTerms(schoolId: string, sessionId: string): Promise<AcademicTerm[]> {
