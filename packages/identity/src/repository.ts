@@ -1,6 +1,11 @@
 export interface LocalSchool {
   schoolId: string;
   name: string;
+  schoolType?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  logoUrl?: string;
   createdAt: string;
 }
 
