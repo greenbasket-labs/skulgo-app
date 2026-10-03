@@ -483,7 +483,7 @@ function renderTeachers() {
         .filter(Boolean)
         .map(Number);
       const nextNumber = String(Math.max(0, ...usedNumbers, 8764) + 1).padStart(4, "0");
-      const teacherId = `AC/ACADEMY/${year}/${nextNumber}`;
+      const teacherId = `AC/AC/${year}/${nextNumber}`;
       next.push({
         teacherId,
         schoolId: school.schoolId,
