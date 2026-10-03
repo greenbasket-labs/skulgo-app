@@ -5,6 +5,7 @@
   "description": "Offline-first, node-based school records platform.",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "dev": "npm --workspace @skulgo/admin run dev",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
     "check": "npm run typecheck && npm test"
