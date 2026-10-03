@@ -105,6 +105,39 @@ function loadTeachers() {
   try {
     const parsed = JSON.parse(readStorage(TEACHER_STORAGE_KEY) || "[]");
     teacherStoreCache = Array.isArray(parsed) ? parsed : [];
+
+    const usedIds = new Set();
+    let changed = false;
+
+    for (const teacher of teacherStoreCache) {
+      const teacherId = String(teacher.teacherId || "");
+      if (!teacherId || !usedIds.has(teacherId)) {
+        if (teacherId) usedIds.add(teacherId);
+        continue;
+      }
+
+      const year = String(loadSchool()?.session?.name || new Date().getFullYear()).split("/")[0];
+      const usedNumbers = teacherStoreCache
+        .filter((item) => item.schoolId === teacher.schoolId)
+        .map((item) => String(item.teacherId || "").match(/(\\d{4})$/)?.[1])
+        .filter(Boolean)
+        .map(Number);
+      let nextNumber = Math.max(0, ...usedNumbers, 8764) + 1;
+
+      let repairedId = `AC/AC/${year}/${String(nextNumber).padStart(4, "0")}`;
+      while (usedIds.has(repairedId)) {
+        nextNumber += 1;
+        repairedId = `AC/AC/${year}/${String(nextNumber).padStart(4, "0")}`;
+      }
+
+      teacher.teacherId = repairedId;
+      usedIds.add(repairedId);
+      changed = true;
+    }
+
+    if (changed) {
+      writeStorage(TEACHER_STORAGE_KEY, JSON.stringify(teacherStoreCache));
+    }
   } catch {
     teacherStoreCache = [];
   }
