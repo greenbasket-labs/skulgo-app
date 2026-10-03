@@ -20,15 +20,18 @@ export interface LocalConnection<T = unknown> {
 
 export class LocalNetworkConnection<T = unknown> implements LocalConnection<T> {
   private connected = false;
+  readonly sourceDeviceId: string;
+  readonly targetDeviceId: string;
+  readonly schoolId: string;
 
   constructor(
     private readonly source: LocalConnectionEndpoint<T>,
     private readonly target: LocalConnectionEndpoint<T>,
-  ) {}
-
-  readonly sourceDeviceId = this.source.deviceId;
-  readonly targetDeviceId = this.target.deviceId;
-  readonly schoolId = this.source.schoolId;
+  ) {
+    this.sourceDeviceId = source.deviceId;
+    this.targetDeviceId = target.deviceId;
+    this.schoolId = source.schoolId;
+  }
 
   async connect(): Promise<void> {
     if (this.source.schoolId !== this.target.schoolId) {
