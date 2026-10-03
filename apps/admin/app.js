@@ -82,7 +82,23 @@ function saveClasses(classes) {
   writeStorage(CLASS_STORAGE_KEY, JSON.stringify(classStoreCache));
 }
 
-function loadSubjects() {\n  if (subjectStoreCache) return subjectStoreCache;\n  try { const parsed = JSON.parse(readStorage(SUBJECT_STORAGE_KEY) || "[]"); subjectStoreCache = Array.isArray(parsed) ? parsed : []; } catch { subjectStoreCache = []; }\n  return subjectStoreCache;\n}\n\nfunction saveSubjects(subjects) { subjectStoreCache = Array.isArray(subjects) ? subjects : []; writeStorage(SUBJECT_STORAGE_KEY, JSON.stringify(subjectStoreCache)); }\n\nfunction id(prefix) {
+function loadSubjects() {
+  if (subjectStoreCache) return subjectStoreCache;
+  try {
+    const parsed = JSON.parse(readStorage(SUBJECT_STORAGE_KEY) || "[]");
+    subjectStoreCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    subjectStoreCache = [];
+  }
+  return subjectStoreCache;
+}
+
+function saveSubjects(subjects) {
+  subjectStoreCache = Array.isArray(subjects) ? subjects : [];
+  writeStorage(SUBJECT_STORAGE_KEY, JSON.stringify(subjectStoreCache));
+}
+
+function id(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -345,7 +361,68 @@ function renderClasses() {
   });
 }
 
-function renderSubjects() {\n  const school = loadSchool();\n  if (!school) { page.innerHTML = "<h2>Subjects</h2><p class=\"muted\">Set up the school before creating subjects.</p>"; return; }\n  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId);\n  page.innerHTML = `<div class="section-heading"><div><h2>Subjects</h2><p class="muted">Manage the subjects offered by this school.</p></div><button class="primary-button" id="new-subject">New subject</button></div><div id="subject-form"></div><div class="table-wrap"><table><thead><tr><th>Subject</th><th>Status</th><th>Actions</th></tr></thead><tbody id="subject-rows"></tbody></table></div>`;\n  document.querySelector("#subject-rows").innerHTML = subjects.length ? subjects.map((subject) => `<tr><td>${escapeHtml(subject.name)}</td><td>${subject.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${subject.status === "ACTIVE" ? `<button class="small-button" data-disable-subject="${escapeHtml(subject.subjectId)}">Disable</button>` : "—"}</td></tr>`).join("") : '<tr><td colspan="3" class="empty">No subjects yet.</td></tr>';\n  document.querySelector("#new-subject").addEventListener("click", () => { document.querySelector("#subject-form").innerHTML = `<form class="form-card" id="subject-create-form"><div class="form-grid"><label>Subject name<input name="name" placeholder="Mathematics" required></label></div><div class="form-actions"><button class="primary-button" type="submit">Save subject</button></div></form>`; document.querySelector("#subject-create-form").addEventListener("submit", (event) => { event.preventDefault(); const name = String(new FormData(event.currentTarget).get("name") || "").trim(); if (!name) return; const next = loadSubjects(); next.push({ subjectId: id("subject"), schoolId: school.schoolId, name, status: "ACTIVE", createdAt: new Date().toISOString() }); saveSubjects(next); renderSubjects(); }); });\n  document.querySelectorAll("[data-disable-subject]").forEach((button) => button.addEventListener("click", () => { const next = loadSubjects(); const subject = next.find((item) => item.subjectId === button.dataset.disableSubject && item.schoolId === school.schoolId); if (!subject) return; subject.status = "DISABLED"; saveSubjects(next); renderSubjects(); }));\n}\n\nfunction renderStudents() {
+function renderSubjects() {
+  const school = loadSchool();
+  if (!school) {
+    page.innerHTML = '<h2>Subjects</h2><p class="muted">Set up the school before creating subjects.</p>';
+    return;
+  }
+  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId);
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Subjects</h2><p class="muted">Manage the subjects offered by this school.</p></div>
+      <button class="primary-button" id="new-subject">New subject</button>
+    </div>
+    <div id="subject-form"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Subject</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="subject-rows"></tbody>
+      </table>
+    </div>`;
+
+  document.querySelector("#subject-rows").innerHTML = subjects.length
+    ? subjects.map((subject) => `<tr><td>${escapeHtml(subject.name)}</td><td>${subject.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${subject.status === "ACTIVE" ? `<button class="small-button" data-disable-subject="${escapeHtml(subject.subjectId)}">Disable</button>` : "—"}</td></tr>`).join("")
+    : '<tr><td colspan="3" class="empty">No subjects yet.</td></tr>';
+
+  document.querySelector("#new-subject").addEventListener("click", () => {
+    document.querySelector("#subject-form").innerHTML = `
+      <form class="form-card" id="subject-create-form">
+        <div class="form-grid">
+          <label>Subject name<input name="name" placeholder="Mathematics" required></label>
+        </div>
+        <div class="form-actions"><button class="primary-button" type="submit">Save subject</button></div>
+      </form>`;
+    document.querySelector("#subject-create-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = String(new FormData(event.currentTarget).get("name") || "").trim();
+      if (!name) return;
+      const next = loadSubjects();
+      next.push({
+        subjectId: id("subject"),
+        schoolId: school.schoolId,
+        name,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString()
+      });
+      saveSubjects(next);
+      renderSubjects();
+    });
+  });
+
+  document.querySelectorAll("[data-disable-subject]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = loadSubjects();
+      const subject = next.find((item) => item.subjectId === button.dataset.disableSubject && item.schoolId === school.schoolId);
+      if (!subject) return;
+      subject.status = "DISABLED";
+      saveSubjects(next);
+      renderSubjects();
+    });
+  });
+}
+
+function renderStudents() {
   const school = loadSchool();
 
   if (!school) {
