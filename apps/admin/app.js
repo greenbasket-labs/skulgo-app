@@ -19,11 +19,13 @@ const STUDENT_API_PATH = "/api/students";
 const CLASS_STORAGE_KEY = "skulgo.admin.classes.v1";
 const SUBJECT_STORAGE_KEY = "skulgo.admin.subjects.v1";
 const TEACHER_STORAGE_KEY = "skulgo.admin.teachers.v1";
+const ASSIGNMENT_STORAGE_KEY = "skulgo.admin.assignments.v1";
 const memoryStorage = new Map();
 let studentStoreCache = null;
 let classStoreCache = null;
 let subjectStoreCache = null;
 let teacherStoreCache = null;
+let assignmentStoreCache = null;
 
 function readStorage(key) {
   try {
@@ -265,6 +267,22 @@ function saveTeachers(teachers) {
   writeStorage(TEACHER_STORAGE_KEY, JSON.stringify(teacherStoreCache));
 }
 
+function loadAssignments() {
+  if (assignmentStoreCache) return assignmentStoreCache;
+  try {
+    const parsed = JSON.parse(readStorage(ASSIGNMENT_STORAGE_KEY) || "[]");
+    assignmentStoreCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    assignmentStoreCache = [];
+  }
+  return assignmentStoreCache;
+}
+
+function saveAssignments(assignments) {
+  assignmentStoreCache = Array.isArray(assignments) ? assignments : [];
+  writeStorage(ASSIGNMENT_STORAGE_KEY, JSON.stringify(assignmentStoreCache));
+}
+
 function id(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -388,7 +406,7 @@ async function renderSchool() {
 
     renderSelectedSections();
 
-    document.querySelector("#school-setup-form").addEventListener("submit", (event) => {
+    document.querySelector("#school-setup-form").addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const form = event.currentTarget;
@@ -843,3 +861,522 @@ function loadAttendance() {
 
 function saveAttendance(records) {
   writeStorage(ATTENDANCE_STORAGE_KEY, JSON.stringify(records));
+}
+
+function renderAssignments() {
+  const school = loadSchool();
+
+  if (!school?.schoolId) {
+    page.innerHTML = `
+      <h2>Teaching Assignments</h2>
+      <p class="muted">Set up the school before creating teaching assignments.</p>
+    `;
+    return;
+  }
+
+  const teachers = loadTeachers().filter(
+    (item) => item.schoolId === school.schoolId && item.status === "ACTIVE"
+  );
+
+  const classes = loadClasses().filter(
+    (item) => item.schoolId === school.schoolId
+  );
+
+  const subjects = loadSubjects().filter(
+    (item) => item.schoolId === school.schoolId && item.status === "ACTIVE"
+  );
+
+  const assignments = loadAssignments().filter(
+    (item) => item.schoolId === school.schoolId
+  );
+
+  const teacherName = (teacherId) =>
+    teachers.find((item) => item.teacherId === teacherId)?.name || teacherId;
+
+  const className = (classId) =>
+    classes.find((item) => item.classId === classId)?.name || classId;
+
+  const subjectName = (subjectId) =>
+    subjects.find((item) => item.subjectId === subjectId)?.name || subjectId;
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h2>Teaching Assignments</h2>
+        <p class="muted">Assign teachers to classes and subjects.</p>
+      </div>
+      <button class="primary-button" id="new-assignment">New assignment</button>
+    </div>
+
+    <div id="assignment-form"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Teacher</th>
+            <th>Class</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assignment-rows"></tbody>
+      </table>
+    </div>
+  `;
+
+  const rows = assignments;
+
+  document.querySelector("#assignment-rows").innerHTML = rows.length
+    ? rows.map((assignment) => `
+        <tr>
+          <td>${escapeHtml(teacherName(assignment.teacherId))}</td>
+          <td>${escapeHtml(className(assignment.classId))}</td>
+          <td>${escapeHtml(subjectName(assignment.subjectId))}</td>
+          <td>${assignment.status === "ACTIVE" ? "Active" : "Disabled"}</td>
+          <td>
+            ${
+              assignment.status === "ACTIVE"
+                ? `<button class="small-button" data-disable-assignment="${escapeHtml(assignment.assignmentId)}">Disable</button>`
+                : "—"
+            }
+          </td>
+        </tr>
+      `).join("")
+    : '<tr><td colspan="5" class="empty">No teaching assignments yet.</td></tr>';
+
+  document.querySelector("#new-assignment").addEventListener("click", () => {
+    document.querySelector("#assignment-form").innerHTML = `
+      <form class="form-card" id="assignment-create-form">
+        <div class="form-grid">
+          <label>
+            Teacher
+            <select name="teacherId" required>
+              <option value="">Select teacher</option>
+              ${teachers.map((teacher) => `
+                <option value="${escapeHtml(teacher.teacherId)}">
+                  ${escapeHtml(teacher.name)}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+
+          <label>
+            Class
+            <select name="classId" required>
+              <option value="">Select class</option>
+              ${classes.map((item) => `
+                <option value="${escapeHtml(item.classId)}">
+                  ${escapeHtml(item.name)}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+
+          <label>
+            Subject
+            <select name="subjectId" required>
+              <option value="">Select subject</option>
+              ${subjects.map((subject) => `
+                <option value="${escapeHtml(subject.subjectId)}">
+                  ${escapeHtml(subject.name)}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Save assignment</button>
+        </div>
+
+        <p class="form-message" id="assignment-message" role="status" aria-live="polite"></p>
+      </form>
+    `;
+
+    document.querySelector("#assignment-create-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const data = new FormData(event.currentTarget);
+      const teacherId = String(data.get("teacherId") || "").trim();
+      const classId = String(data.get("classId") || "").trim();
+      const subjectId = String(data.get("subjectId") || "").trim();
+
+      const teacher = teachers.find((item) => item.teacherId === teacherId);
+      const selectedClass = classes.find((item) => item.classId === classId);
+      const subject = subjects.find((item) => item.subjectId === subjectId);
+
+      if (!teacher || !selectedClass || !subject) {
+        document.querySelector("#assignment-message").textContent =
+          "Select a valid teacher, class and subject.";
+        return;
+      }
+
+      const next = loadAssignments();
+
+      const duplicate = next.find(
+        (item) =>
+          item.schoolId === school.schoolId &&
+          item.teacherId === teacherId &&
+          item.classId === classId &&
+          item.subjectId === subjectId &&
+          item.status === "ACTIVE"
+      );
+
+      if (duplicate) {
+        document.querySelector("#assignment-message").textContent =
+          "This teacher is already assigned to this class and subject.";
+        return;
+      }
+
+      next.push({
+        assignmentId: id("assignment"),
+        schoolId: school.schoolId,
+        teacherId,
+        classId,
+        subjectId,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString()
+      });
+
+      saveAssignments(next);
+      renderAssignments();
+    });
+  });
+
+  document.querySelectorAll("[data-disable-assignment]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = loadAssignments();
+
+      const assignment = next.find(
+        (item) =>
+          item.assignmentId === button.dataset.disableAssignment &&
+          item.schoolId === school.schoolId
+      );
+
+      if (!assignment) return;
+
+      assignment.status = "DISABLED";
+      saveAssignments(next);
+      renderAssignments();
+    });
+  });
+}
+function renderAttendance() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = `
+      <h2>Attendance</h2>
+      <p class="muted">Complete School Setup before recording attendance.</p>
+    `;
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const today = new Date().toISOString().slice(0, 10);
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h2>Attendance</h2>
+        <p class="muted">Record daily student attendance by class.</p>
+      </div>
+    </div>
+
+    <form class="form-card" id="attendance-selector">
+      <div class="form-grid">
+        <label>Class
+          <select name="classId" required>
+            <option value="">Select class</option>
+            ${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Date
+          <input type="date" name="date" value="${today}" required>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Load students</button>
+      </div>
+    </form>
+
+    <div id="attendance-record-form"></div>
+  `;
+
+  document.querySelector("#attendance-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    renderAttendanceList(
+      school,
+      String(data.get("classId") || ""),
+      String(data.get("date") || today)
+    );
+  });
+}
+
+function renderAttendanceList(school, classId, date) {
+  const selectedClass = loadClasses().find(
+    (item) => item.schoolId === school.schoolId && item.classId === classId
+  );
+  const store = loadStore();
+  const students = store.students.filter(
+    (student) => student.schoolId === school.schoolId && student.classId === classId
+  );
+  const records = loadAttendance();
+  const existing = new Map(
+    records
+      .filter((record) =>
+        record.schoolId === school.schoolId &&
+        record.classId === classId &&
+        record.date === date
+      )
+      .map((record) => [record.studentId, record.status])
+  );
+  const container = document.querySelector("#attendance-record-form");
+  if (!container) return;
+
+  if (!selectedClass) {
+    container.innerHTML = '<p class="empty">Select a valid class.</p>';
+    return;
+  }
+
+  if (!students.length) {
+    container.innerHTML = `
+      <div class="form-card">
+        <h3>${escapeHtml(selectedClass.name)}</h3>
+        <p class="muted">No approved students are enrolled in this class.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h3>${escapeHtml(selectedClass.name)}</h3>
+        <p class="muted">${escapeHtml(date)}</p>
+      </div>
+    </div>
+    <form class="form-card" id="attendance-form">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Student</th><th>Admission number</th><th>Attendance</th></tr></thead>
+          <tbody>
+            ${students.map((student) => {
+              const status = existing.get(student.studentId) || "present";
+              return `<tr>
+                <td>${escapeHtml(student.name)}</td>
+                <td>${escapeHtml(student.admissionNumber || "N/A")}</td>
+                <td>
+                  <select name="status:${escapeHtml(student.studentId)}" required>
+                    <option value="present" ${status === "present" ? "selected" : ""}>Present</option>
+                    <option value="absent" ${status === "absent" ? "selected" : ""}>Absent</option>
+                  </select>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save attendance</button>
+      </div>
+    </form>
+  `;
+
+  document.querySelector("#attendance-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const next = loadAttendance().filter(
+      (record) => !(
+        record.schoolId === school.schoolId &&
+        record.classId === classId &&
+        record.date === date
+      )
+    );
+    const now = new Date().toISOString();
+
+    for (const student of students) {
+      const status = String(data.get(`status:${student.studentId}`) || "present");
+      next.push({
+        attendanceId: id("attendance"),
+        schoolId: school.schoolId,
+        classId,
+        studentId: student.studentId,
+        sessionId: String(school.session?.name || ""),
+        termId: String(school.term?.name || ""),
+        date,
+        status,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    saveAttendance(next);
+    renderAttendanceList(school, classId, date);
+
+    const notice = document.querySelector("#attendance-record-form");
+    if (notice) {
+      notice.insertAdjacentHTML(
+        "afterbegin",
+        `<div class="notice-card"><strong>Attendance saved successfully.</strong><p class="muted">${escapeHtml(selectedClass.name)} — ${escapeHtml(date)}</p></div>`
+      );
+    }
+  });
+}
+
+
+const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
+const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
+
+function loadResultsRecords() {
+  try {
+    const parsed = JSON.parse(readStorage(RESULTS_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadGradeScale() {
+  try {
+    const parsed = JSON.parse(readStorage(GRADE_SCALE_STORAGE_KEY) || "null");
+    return parsed && Array.isArray(parsed.bands) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function calculateResultTotal(record) {
+  const ca = Number.isFinite(Number(record.ca)) ? Number(record.ca) : undefined;
+  const exam = Number.isFinite(Number(record.exam)) ? Number(record.exam) : undefined;
+  const values = [ca, exam].filter((value) => value !== undefined);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function calculateResultGrade(total, scale) {
+  if (total === undefined || !scale?.bands?.length) return undefined;
+  const bands = [...scale.bands].sort((a, b) => Number(a.minimumTotal) - Number(b.minimumTotal));
+  return bands.find((band) => total >= Number(band.minimumTotal) && total <= Number(band.maximumTotal))?.label;
+}
+
+function renderResults() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = '<h2>Results</h2><p class="muted">Complete School Setup before viewing results.</p>';
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId && item.status === "ACTIVE");
+  const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
+  const records = loadResultsRecords().filter((item) =>
+    item.schoolId === school.schoolId &&
+    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
+    String(item.termId || "") === String(school.term?.termId || school.term?.name || "")
+  );
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Results</h2><p class="muted">View student CA, exam, total and grade for the current academic period.</p></div>
+    </div>
+    <form class="form-card" id="results-selector">
+      <div class="form-grid">
+        <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Subject<select name="subjectId" required><option value="">Select subject</option>${subjects.map((item) => `<option value="${escapeHtml(item.subjectId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Session<input value="${escapeHtml(school.session.name)}" readonly></label>
+        <label>Term<input value="${escapeHtml(school.term.name)}" readonly></label>
+      </div>
+      <div class="form-actions"><button class="primary-button" type="submit">Load results</button></div>
+    </form>
+    <div id="results-list"></div>`;
+
+  document.querySelector("#results-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const classId = String(data.get("classId") || "");
+    const subjectId = String(data.get("subjectId") || "");
+    const selectedClass = classes.find((item) => item.classId === classId);
+    const selectedSubject = subjects.find((item) => item.subjectId === subjectId);
+    const gradeScale = loadGradeScale();
+
+    if (!selectedClass || !selectedSubject) {
+      document.querySelector("#results-list").innerHTML = '<p class="empty">Select a class and subject.</p>';
+      return;
+    }
+
+    const classStudents = students.filter((student) => student.classId === classId);
+    const rows = classStudents.map((student) => {
+      const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subjectId);
+      const total = record ? calculateResultTotal(record) : undefined;
+      return { student, record, total, grade: calculateResultGrade(total, gradeScale) };
+    });
+
+    document.querySelector("#results-list").innerHTML = `
+      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} N/A ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} - ${escapeHtml(school.term.name)}</p></div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Student</th><th>Admission number</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody>${rows.length ? rows.map(({student,record,total,grade}) => `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
+      </table></div>
+      ${rows.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
+      ${records.length && !gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
+    `;
+  });
+}
+
+
+function render(section) {
+  const [heading] = labels[section] || [section, section];
+  title.textContent = heading;
+
+  if (section === "school") {
+    renderSchool();
+  } else if (section === "students") {
+    renderStudents();
+  } else if (section === "classes") {
+    renderClasses();
+  } else if (section === "subjects") {
+    renderSubjects();
+  } else if (section === "teachers") {
+    renderTeachers();
+  } else if (section === "assignments") {
+    renderAssignments();
+  } else if (section === "attendance") {
+    renderAttendance();
+  } else if (section === "results") {
+    renderResults();
+  } else {
+    page.innerHTML = `<h2>${heading}</h2><p class="muted">This module is not wired into the Admin shell yet.</p>`;
+  }
+}
+
+nav.forEach((button) => {
+  button.addEventListener("click", () => {
+    nav.forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+    render(button.dataset.section);
+  });
+});
+
+render("school");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
