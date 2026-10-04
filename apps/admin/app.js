@@ -1263,6 +1263,7 @@ function renderAttendanceList(school, classId, date) {
 const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
 const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
 const REMARK_BANDS_STORAGE_KEY = "skulgo.admin.remark-bands.v1";
+const STUDENT_REMARKS_STORAGE_KEY = "skulgo.admin.student-remarks.v1";
 const DEFAULT_REMARK_BANDS = [
   { label: "1", title: "Excellent", minimumAverage: 70, remark: "Outstanding performance. Keep reaching for greater heights." },
   { label: "2", title: "Very Good", minimumAverage: 60, remark: "Very good performance. Continue working hard and aim even higher." },
@@ -1282,6 +1283,20 @@ function loadRemarkBands() {
 
 function saveRemarkBands(bands) {
   writeStorage(REMARK_BANDS_STORAGE_KEY, JSON.stringify({ bands }));
+}
+function loadStudentRemarks() {
+  try {
+    const parsed = JSON.parse(readStorage(STUDENT_REMARKS_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStudentRemark(key, value) {
+  const remarks = loadStudentRemarks();
+  remarks[key] = value;
+  writeStorage(STUDENT_REMARKS_STORAGE_KEY, JSON.stringify(remarks));
 }
 
 function getRemarkForAverage(average, remarkBands) {
@@ -1382,6 +1397,15 @@ function renderResults() {
       ${rows.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
       ${records.length && !gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
     `;
+
+    document.querySelector("#save-report-remarks").addEventListener("click", () => {
+      saveStudentRemark(remarksKey, {
+        classTeacher: document.querySelector("#class-teacher-remark").value.trim(),
+        principal: document.querySelector("#principal-remark").value.trim(),
+        encouragement: document.querySelector("#encouragement-remark").value.trim()
+      });
+      document.querySelector("#save-report-remarks").insertAdjacentHTML("afterend", '<span class="notice-inline">Remarks saved.</span>');
+    });
   });
 }
 
@@ -1538,6 +1562,8 @@ function renderReportCard() {
     const classRank = classRanks.get(student.studentId);
     const schoolRank = schoolRanks.get(student.studentId);
 
+    const remarksKey = [school.schoolId, school.session?.name, school.term?.name, student.studentId].join("|");
+    const savedStudentRemarks = loadStudentRemarks()[remarksKey] || {};
     document.querySelector("#report-card-output").innerHTML = `
       <article class="report-card-paper">
         <header class="report-card-header">
@@ -1575,9 +1601,9 @@ function renderReportCard() {
         <section class="report-card-remarks-section">
           <div class="report-card-remark"><span>Overall Performance</span><strong>${escapeHtml(overallBand ? "Level " + overallBand.label + " — " + overallBand.title : "N/A")}</strong><p>${escapeHtml(overallRemark || "N/A")}</p></div>
           <div class="report-card-custom-remarks">
-            <label>Class Teacher's Remark<textarea id="class-teacher-remark" rows="2" placeholder="Enter a custom class teacher remark..."></textarea></label>
-            <label>Principal's Remark<textarea id="principal-remark" rows="2">${escapeHtml(defaultPrincipalRemark)}</textarea></label>
-            <label>Encouragement<textarea id="encouragement-remark" rows="2" placeholder="Enter an encouraging message..."></textarea></label>
+            <label>Class Teacher's Remark<textarea id="class-teacher-remark" rows="2" placeholder="Enter a custom class teacher remark...">${escapeHtml(savedStudentRemarks.classTeacher || "")}</textarea></label>
+            <label>Principal's Remark<textarea id="principal-remark" rows="2">${escapeHtml(savedStudentRemarks.principal || defaultPrincipalRemark)}</textarea></label>
+            <label>Encouragement<textarea id="encouragement-remark" rows="2" placeholder="Enter an encouraging message...">${escapeHtml(savedStudentRemarks.encouragement || "")}</textarea></label><div class="form-actions"><button type="button" class="primary-button" id="save-report-remarks">Save Remarks</button></div>
           </div>
         </section>
 
