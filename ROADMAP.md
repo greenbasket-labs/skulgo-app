@@ -8,146 +8,88 @@ Build one module at a time:
 
 Keep v1 minimal. Do not add optional complexity until the core workflow is proven.
 
-## Completed / frozen domain foundation
+## V1 stabilization — current phase
 
-- [x] School v1 — school profile, academic session, current term, multiple school sections
-- [x] School structure v1 — School → Section → Class → Subject
-- [x] Admission / Student v1 — admissions, approval, stable admission numbers, class membership
-- [x] Class v1
-- [x] Subject v1
-- [x] Teacher v1
-- [x] Teacher Assignment v1
-- [x] Attendance v1
-- [x] CA v1
-- [x] Exam v1
-- [x] Results v1
-- [x] Totals v1
-- [x] Grade v1
-- [x] Aggregate v1
-- [x] Rank v1
-- [x] Report Card v1 domain
-- [x] Fees v1 domain
-- [x] Cashier / Payment Verification v1 domain
-- [x] Messaging v1 domain
-- [x] Sync v1 domain
-- [x] Sync Transport v1 domain
-- [x] Backup v1 domain
-- [x] Identity & Roles v1 domain
-- [x] Device Pairing v1 domain
-- [x] Connection Status v1 domain
-- [x] Local Network Connection v1 domain
-- [x] Result Publishing v1 domain
+The approved v1 feature surface is now in stabilization. Feature expansion is paused until the release gates are passed.
 
-## Admin UI progress
+### Active v1 apps
 
-### Completed
+- [x] Admin
+- [x] Teacher
+- [ ] Cashier app — inactive
+- [ ] Parent app — inactive
+- [ ] Student app — inactive
 
-- [x] Admin shell and local workspace
-- [x] School Setup
+### Core v1 workflow
+
+- [x] School setup
 - [x] Students / admissions
 - [x] Classes
 - [x] Subjects
 - [x] Teachers
+- [x] Teaching Assignments
 - [x] Attendance
-- [x] Results review
-- [x] Report Card review screen
-- [x] Local student persistence through the Admin Node runtime store
+- [x] CA
+- [x] Exam
+- [x] Results foundation
+- [x] Totals
+- [x] Grade
+- [x] Aggregate
+- [x] Rank foundation
+- [x] Report Card review
+- [x] Report Card remarks
+- [x] Report Card publishing
+- [x] Report Card print/share
+- [x] Optional Report Card Revenue configuration
+- [ ] End-to-end Teacher → Sync → Admin → Report Card verification
 
-### Current module
+### Stabilization gates
 
-**Report Card review v1**
+- [x] Add clean-checkout CI workflow
+- [ ] npm ci
+- [ ] npm run typecheck
+- [ ] npm test
+- [ ] Manual Admin acceptance test
+- [ ] Manual Teacher acceptance test
+- [ ] Offline/restart persistence test
+- [ ] End-to-end sync acceptance test
+- [ ] Report Card calculation/rank acceptance test
+- [ ] Publish/print/share acceptance test
+- [ ] Remove only confirmed v1 defects
+- [ ] Freeze v1
 
-Purpose:
-- Select a class
-- Select a student
-- Review subject totals
-- Review grades
-- Review overall total
-- Review average
-- Review class position
-- Review attendance
+See docs/release/v1-stabilization.md for the release checklist.
 
-Important v1 note: the current Admin Report Card screen is a review UI. It currently performs some result/grade/rank calculations in the Admin client rather than directly instantiating every domain service. This should be aligned carefully before treating the Admin screen as the final publication pipeline.
+## Phone release — after v1 freeze
 
-## Next Admin modules
+- [ ] Choose the phone wrapper/package approach
+- [ ] Add installable Android build
+- [ ] Verify local storage survives app restart/update
+- [ ] Verify offline operation with no internet
+- [ ] Verify Admin and Teacher device roles
+- [ ] Verify update/migration safety
+- [ ] Pilot with real schools
+- [ ] Publish v1 mobile release
 
-### 1. Report Card hardening and freeze
+The phone package should wrap the stabilized application rather than create a second school-record implementation.
 
-- [ ] User-test Report Card with existing Primary 1 students
-- [ ] Verify no-result and missing-grade-scale states
-- [ ] Verify attendance display
-- [ ] Verify class position and tie behavior
-- [ ] Align calculations with Aggregate, Grade, Rank, and Report Card domain contracts
-- [ ] Freeze Report Card review v1
+## Later, only when real demand requires it
 
-### 2. Result Publishing
-
-- [ ] Add Admin publishing screen
-- [ ] Publish/unpublish result for the intended academic period
-- [ ] Show publication status
-- [ ] Keep publishing separate from editing results
-- [ ] Freeze Result Publishing UI v1
-
-### 3. Print / Share output
-
-- [ ] Add a minimal printable published report card
-- [ ] Use published result data rather than a second result calculation path
-- [ ] Leave external sending/integration options for a later phase
-
-### 4. Fees
-
-- [ ] Implement minimal Admin fee setup UI
-- [ ] School/class/student fee records
-- [ ] Keep payment verification separate from fee definition
-
-### 5. Cashier
-
-- [ ] Implement payment verification workflow
-- [ ] Verify student/admission identity
-- [ ] Record verified payment
-- [ ] Update balance
-- [ ] Keep online payment integrations optional and separate
-
-### 6. Messaging
-
-- [ ] Implement minimal school-to-user messaging workflow
-- [ ] Respect role and record permissions
-- [ ] Keep delivery transport separate from message records
-
-## Later platform work
-
-- [ ] Teacher workspace UI
-- [ ] Staff restricted replicas
-- [ ] Parent/Student restricted views
-- [ ] Device pairing UI
+- [ ] Secure payment provider
+- [ ] Student-specific payment request/reference
+- [ ] Provider webhook/server verification
+- [ ] Automated 50/50 settlement and revenue ledger
+- [ ] Parent workspace
+- [ ] Student workspace
+- [ ] Promotion
+- [ ] School calendar
+- [ ] Timetable
+- [ ] Advanced device pairing UI
 - [ ] Local network synchronization UI
-- [ ] Sync queue and acknowledgement UI
 - [ ] Backup/restore UI
 - [ ] Offline conflict review
-
-## Release discipline
-
-Before freezing a module:
-
-1. Test the actual Admin workflow locally.
-2. Verify data persists after refresh/restart where persistence is required.
-3. Check source against the approved module scope.
-4. Run typecheck/tests where applicable.
-5. Commit the module separately.
-6. Do not start the next module until the current module is accepted.
+- [ ] Additional school workflows requested by pilot schools
 
 ## Repository boundary
 
 SkulGo Offline is maintained separately from the existing online SkulGo repository. Work in this roadmap applies only to greenbasket-labs/skulgo-offline.
-
-## Optional Revenue / Paid Report Card Publishing
-
-- [x] Define school-level paid Report Card publishing configuration
-- [x] Allow school to enable/disable the option
-- [x] Allow school to configure fee amount in NGN
-- [x] Store intended 50% school / 50% SkulGo split
-- [ ] Connect secure payment provider
-- [ ] Create student-specific payment request/reference
-- [ ] Verify payment through provider webhook/server
-- [ ] Publish only after verified payment when paid publishing is enabled
-- [ ] Automate 50/50 settlement and revenue ledger
