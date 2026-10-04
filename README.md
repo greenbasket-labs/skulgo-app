@@ -4,11 +4,15 @@ Offline-first, node-based school records platform.
 
 ## Current status
 
-SkulGo Offline is being built module-by-module with a strict workflow:
+SkulGo Offline is in **v1 stabilization**. The approved v1 product surface is intentionally limited to **Admin + Teacher** while the core offline workflow is tested and frozen.
 
-**propose one module → review/approve → implement → test/source-check → freeze → next module**
+**Current priority: stabilize first, package for phones second, add new features later from real school demand.**
 
-The active v1 product surface is intentionally limited to two apps: Admin and Teacher. The Admin workspace contains working v1 screens for School, Students, Classes, Subjects, Teachers, Teaching Assignments, Attendance, Results, and Report Card review. Finance and messaging remain part of the planned Admin surface.
+Core v1 flow:
+
+**School → Students/Classes/Subjects → Teacher Assignment → Attendance/CA/Exam → Results → Report Card → Publish → Print/Share**
+
+The release checklist is in docs/release/v1-stabilization.md.
 
 ## Core model
 
@@ -17,7 +21,7 @@ SkulGo is a network of school-owned devices.
 - Primary Admin node: authoritative school records.
 - Trusted Admin nodes: additional phones, laptops, tablets, or other approved devices that replicate official records.
 - Teacher nodes: restricted working replicas for assigned teaching duties.
-- Cashier, Parent, and Student apps are intentionally hidden/inactive in v1 and will be introduced later when real school demand justifies them.
+- Cashier, Parent, and Student apps are intentionally inactive in v1.
 
 The app installed on a device makes that device a node. The school does not need a permanent cloud database.
 
@@ -30,8 +34,6 @@ The school structure is:
 Students belong to classes. Teachers and teacher assignments connect staff to academic work. Academic records flow through:
 
 **Attendance → CA → Exams → Results → Totals → Grade → Aggregate → Rank → Report Card → Publish**
-
-The Admin Report Card review screen uses the current academic period and can review a student's subjects, totals, grades, overall total, average, class position, and attendance.
 
 ## Synchronization
 
@@ -86,40 +88,33 @@ Optional backups can later be scheduled weekly, monthly, or per term and stored 
 - packages/sync/ — node replication
 - database/local-schema/ — local storage foundation
 - docs/architecture/ — system contracts and decisions
-- ROADMAP.md — implementation roadmap and current module status
-
-This repository is intentionally separate from the existing online SkulGo application.
-
-## Authoritative Admin replication
-
-The Admin node is the authoritative receiver for school-official records. Incoming changes are processed with three safety rules:
-
-1. A change ID already recorded in the Admin inbox is treated as a duplicate and is not applied twice.
-2. A record update is accepted only when its entity version is newer than the official version.
-3. Stale/equal versions are recorded as conflicts and never overwrite the official record.
-
-The SQLite reference implementation uses a transaction-capable database so the official record and inbox receipt can be committed together before the sender receives an acknowledgement.
+- docs/release/v1-stabilization.md — release gates
+- ROADMAP.md — implementation roadmap
 
 ## Development
 
 From the repository root:
 
-```powershell
-npm install
-npm run dev
-```
+    npm install
+    npm run dev
 
 Admin runs locally at http://localhost:3000.
 
+Teacher runs locally with:
+
+    node apps/teacher/server.mjs
+
 Typecheck and tests:
 
-```powershell
-npm run check
-```
+    npm run check
 
-For the local Admin workflow, the repository may also use a small Node-backed local data store under .skulgo-local/. That runtime data is intentionally ignored by Git.
+A GitHub Actions workflow now runs the clean-install, typecheck, and test gates on pushes and pull requests to main.
 
-## Scope boundary
+## Phone release
+
+Phone packaging is deliberately **after v1 stabilization**. The mobile release will wrap the stabilized offline application instead of creating a separate school-record implementation.
+
+## Repository boundary
 
 Do not modify the existing online SkulGo repository as part of this project. SkulGo Offline is developed independently so its offline-first architecture and contracts can evolve without coupling to the online application.
 
