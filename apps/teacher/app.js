@@ -264,6 +264,66 @@ function renderEditCA(caId){
  document.querySelector("#back-edit-ca").onclick=()=>renderCA(caId);
  document.querySelector("#edit-ca-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),maximumScore=Number(d.get("maximumScore"));if(!Number.isFinite(maximumScore)||maximumScore<=0){document.querySelector("#edit-ca-message").textContent="Maximum score must be greater than zero.";return}const st=state(),saved=st.ca.find(v=>v.id===caId);if(!saved)return renderSubjects();saved.name=String(d.get("name")).trim();saved.maximumScore=maximumScore;saved.date=String(d.get("date"));saved.scores=(saved.scores||[]).filter(v=>Number(v.score)<=maximumScore);write(st);renderCA(caId);};
 }
+
+function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
+}
+function readJsonFile() {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement("input"); input.type = "file"; input.accept = ".json,application/json";
+    input.onchange = async () => { const file = input.files?.[0]; if (!file) return reject(new Error("No file selected.")); try { resolve(JSON.parse(await file.text())); } catch { reject(new Error("The selected file is not valid JSON.")); } };
+    input.click();
+  });
+}
+function renderTransfer() {
+  const s = state();
+  page.innerHTML = '<div class="section-heading"><div><h2>Export / Import</h2><p class="muted">Move class and subject records by file. No live connection is required.</p></div></div>' +
+    '<div class="cards"><div class="card"><h3>Import from Admin</h3><p>Class Master imports the full class. Subject Teacher imports the assigned subject and its students.</p><button class="primary-button" id="import-admin">Import class package</button><p class="form-message" id="import-message"></p></div>' +
+    '<div class="card"><h3>Export to Admin</h3><p>Export attendance, CA, exam and result records for the school Admin.</p><button class="primary-button" id="export-admin">Export teacher submission</button><p class="form-message" id="export-message"></p></div></div>';
+  document.querySelector("#import-admin").onclick = async () => {
+    const message = document.querySelector("#import-message");
+    try {
+      const pkg = await readJsonFile();
+      if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "ADMIN_TO_TEACHER") throw new Error("This is not an Admin class package.");
+      if (!pkg.teacher?.teacherId || (s.teacher?.teacherId && pkg.teacher.teacherId !== s.teacher.teacherId)) throw new Error("This package is for another Teacher.");
+      const assignment = pkg.assignment || {};
+      if (!["CLASS_MASTER","SUBJECT_TEACHER"].includes(assignment.assignmentType)) throw new Error("Invalid teacher assignment.");
+      if (!pkg.class?.classId || !pkg.class?.name) throw new Error("The package has no valid class.");
+      const students = Array.isArray(pkg.students) ? pkg.students : [], subjects = Array.isArray(pkg.subjects) ? pkg.subjects : [];
+      let target = s.classes.find(c => c.sourceClassId === pkg.class.classId);
+      if (!target) { target = { id:id("class"), sourceClassId:pkg.class.classId, name:pkg.class.name, role:assignment.assignmentType, students:[] }; s.classes.push(target); }
+      target.name = pkg.class.name; target.role = assignment.assignmentType; target.sourceClassId = pkg.class.classId;
+      const byStudent = new Map((target.students || []).map(st => [st.studentId, st]));
+      students.forEach(st => byStudent.set(st.studentId, { studentId:st.studentId, name:st.name, sex:st.sex || "", status:st.status || "ACTIVE" }));
+      target.students = [...byStudent.values()];
+      for (const sub of subjects) {
+        let local = s.subjects.find(x => x.sourceSubjectId === sub.subjectId && x.classId === target.id);
+        if (!local) { local = { id:id("subject"), sourceSubjectId:sub.subjectId, name:sub.name, classId:target.id, className:target.name, studentIds:[...(sub.studentIds || [])] }; s.subjects.push(local); }
+        else { local.name=sub.name; local.studentIds=[...(sub.studentIds || [])]; local.className=target.name; }
+      }
+      write(s); message.textContent = "Class package imported successfully."; render("classes");
+    } catch (error) { message.textContent = error?.message || "Could not import Admin package."; }
+  };
+  document.querySelector("#export-admin").onclick = () => {
+    const firstClass = s.classes[0];
+    if (!s.teacher?.teacherId || !firstClass) { document.querySelector("#export-message").textContent = "Import a class package first."; return; }
+    const subjectIds = new Set(s.subjects.filter(x => x.classId === firstClass.id).map(x => x.sourceSubjectId || x.id));
+    const results = [];
+    for (const ca of (s.ca || [])) for (const score of (ca.scores || [])) results.push({ resultId:ca.id+":"+score.studentId, studentId:score.studentId, subjectId:ca.sourceSubjectId || ca.subjectId, ca:score.score });
+    for (const exam of (s.exams || [])) for (const score of (exam.scores || [])) results.push({ resultId:exam.id+":"+score.studentId, studentId:score.studentId, subjectId:exam.sourceSubjectId || exam.subjectId, exam:score.score });
+    const pkg = {
+      skulgoTransfer:"v1", direction:"TEACHER_TO_ADMIN", exportedAt:new Date().toISOString(),
+      school:{ schoolId:s.teacher.schoolId || "" }, teacher:{ teacherId:s.teacher.teacherId, name:s.teacher.name },
+      class:{ classId:firstClass.sourceClassId || firstClass.id, name:firstClass.name },
+      subjects:s.subjects.filter(x => x.classId === firstClass.id).map(x => ({ subjectId:x.sourceSubjectId || x.id, id:x.sourceSubjectId || x.id, name:x.name, classId:firstClass.sourceClassId || firstClass.id })),
+      records:{ attendance:(s.attendance || []).filter(r => r.classId === firstClass.id), results:results.filter(r => subjectIds.has(r.subjectId)) }
+    };
+    downloadJson("skulgo-teacher-"+(s.teacher.name || "submission").replace(/[^a-z0-9]+/gi,"-")+".json",pkg);
+    document.querySelector("#export-message").textContent = "Teacher submission exported.";
+  };
+}
+
 function renderConnect(){page.innerHTML='<div class="section-heading"><div><h2>Connect to School</h2><p class="muted">Pair with Admin when a school workspace is available. Normal Teacher work remains local.</p></div></div><div class="card"><h3>Connection foundation</h3><p>Pairing and sync will use the shared SkulGo identity/assignment contracts. This screen is intentionally small until the connection flow is implemented.</p></div>'}
 function render(section){
  nav.forEach(b=>b.classList.toggle("active",b.dataset.section===section));
@@ -271,8 +331,8 @@ function render(section){
  if(section==="home") renderHome();
  else if(section==="classes") renderClasses();
  else if(section==="subjects") renderSubjects();
- else if(section==="received") page.innerHTML='<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';
- else if(section==="connect") renderConnect();
+ else if(section==="transfer") renderTransfer();'<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';
+ else if(section==="connect") renderTransfer();
  else if(section==="grade-band") renderGradeBand();
  else if(section==="settings") page.innerHTML='<div class="card"><h2>Settings</h2><p class="muted">Teacher profile and local workspace settings.</p></div>';
  else renderHome();
