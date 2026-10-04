@@ -72,7 +72,9 @@ test("one teacher owns a class + subject assignment", () => {
     schoolId: "school-1",
     teacherUserId: "teacher-math",
     classId: "ss1",
+    assignmentType: "SUBJECT_TEACHER",
     subjectId: "math",
+    status: "ACTIVE",
     createdAt: "2026-10-01T08:00:00.000Z",
   }];
 
@@ -82,7 +84,9 @@ test("one teacher owns a class + subject assignment", () => {
       schoolId: "school-1",
       teacherUserId: "teacher-other",
       classId: "ss1",
+      assignmentType: "SUBJECT_TEACHER",
       subjectId: "math",
+      status: "ACTIVE",
       createdAt: "2026-10-01T08:00:00.000Z",
     }),
     false,
