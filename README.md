@@ -39,11 +39,11 @@ Students belong to classes. Teachers and teacher assignments connect staff to ac
 
 Teacher work is saved locally first.
 
-When a connection exists, authorized changes can synchronize live.
+Pairing/trust is intended to be durable, while a network connection is temporary. A device can disconnect without losing its local records.
 
-When there is no connection, changes remain queued and synchronize automatically later.
+Teacher work is saved locally first. The shared sync engine provides the queue, acknowledgement, idempotency, versioning, permissions, and conflict-detection foundation.
 
-The sync engine uses durable acknowledgement, idempotency, versioning, permissions, and conflict detection.
+**Important v1 boundary:** real phone/laptop device-to-device synchronization is not yet wired into the Admin and Teacher application screens. A local copy must never be treated as proof that a record reached Admin until Sync acknowledges it.
 
 Possible transports include internet, school Wi-Fi, hotspot/local network, nearby/Bluetooth, and QR/manual exchange.
 
@@ -110,9 +110,15 @@ Typecheck and tests:
 
 A GitHub Actions workflow now runs the clean-install, typecheck, and test gates on pushes and pull requests to main.
 
+## Installable offline web app
+
+Admin and Teacher now include an install manifest and service worker. After the first successful load, the application shell can reopen without internet on supported browsers.
+
+A GitHub Pages workflow publishes static installable copies of both apps. Static mode uses local browser storage; it does not provide cross-device sync.
+
 ## Phone release
 
-Phone packaging is deliberately **after v1 stabilization**. The mobile release will wrap the stabilized offline application instead of creating a separate school-record implementation.
+A native phone package remains deliberately **after v1 stabilization**. The mobile release will wrap the stabilized offline application instead of creating a separate school-record implementation.
 
 ## Repository boundary
 
