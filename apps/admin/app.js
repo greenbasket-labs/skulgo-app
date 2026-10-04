@@ -1262,6 +1262,33 @@ function renderAttendanceList(school, classId, date) {
 
 const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
 const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
+const REMARK_BANDS_STORAGE_KEY = "skulgo.admin.remark-bands.v1";
+const DEFAULT_REMARK_BANDS = [
+  { label: "A", remark: "Excellent" },
+  { label: "B", remark: "Very Good" },
+  { label: "C", remark: "Good" },
+  { label: "D", remark: "Fair" },
+  { label: "E", remark: "Pass" },
+  { label: "F", remark: "Needs Improvement" }
+];
+
+function loadRemarkBands() {
+  try {
+    const parsed = JSON.parse(readStorage(REMARK_BANDS_STORAGE_KEY) || "null");
+    return parsed && Array.isArray(parsed.bands) && parsed.bands.length ? parsed.bands : { bands: DEFAULT_REMARK_BANDS };
+  } catch {
+    return { bands: DEFAULT_REMARK_BANDS };
+  }
+}
+
+function saveRemarkBands(bands) {
+  writeStorage(REMARK_BANDS_STORAGE_KEY, JSON.stringify({ bands }));
+}
+
+function getRemarkForGrade(grade, remarkBands) {
+  if (!grade) return "";
+  return remarkBands.bands.find((band) => String(band.label).toUpperCase() === String(grade).toUpperCase())?.remark || "";
+}
 
 function loadResultsRecords() {
   try {
@@ -1422,11 +1449,31 @@ function renderReportCard() {
     return n % 10 === 1 ? n + "st" : n % 10 === 2 ? n + "nd" : n % 10 === 3 ? n + "rd" : n + "th";
   };
 
+  const remarkBands = loadRemarkBands();
+
   page.innerHTML = `
     <div class="report-card-selector-wrap">
       <div class="section-heading">
         <div><h2>Report Card</h2><p class="muted">Generate the student's term report from existing school records.</p></div>
       </div>
+
+      <details class="report-card-remarks-settings">
+        <summary>Remark Bands</summary>
+        <div class="report-card-remarks-body">
+          <p class="muted">Set the remark that should appear for each performance grade. Changes are saved on this device.</p>
+          <form id="remark-bands-form">
+            <div class="report-card-remarks-grid">
+              ${remarkBands.bands.map((band, index) => `
+                <label>Grade ${escapeHtml(band.label)}
+                  <input name="remark-${index}" value="${escapeHtml(band.remark || "")}" placeholder="Remark">
+                </label>
+              `).join("")}
+            </div>
+            <div class="form-actions"><button class="primary-button" type="submit">Save Remark Bands</button></div>
+          </form>
+        </div>
+      </details>
+
       <form class="form-card" id="report-card-selector">
         <div class="form-grid">
           <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
@@ -1445,6 +1492,18 @@ function renderReportCard() {
     const classStudents = students.filter((student) => student.classId === classSelect.value);
     studentSelect.innerHTML = '<option value="">Select student</option>' +
       classStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)}</option>`).join("");
+  });
+
+  document.querySelector("#remark-bands-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const current = loadRemarkBands().bands;
+    const next = current.map((band, index) => ({
+      ...band,
+      remark: String(data.get(`remark-${index}`) || "").trim()
+    }));
+    saveRemarkBands(next);
+    event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>Remark bands saved successfully.</strong></div>');
   });
 
   document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
@@ -1472,6 +1531,8 @@ function renderReportCard() {
     const attendanceTotal = present + absent;
     const attendanceRate = attendanceTotal ? Math.round((present / attendanceTotal) * 100) : 0;
     const stats = studentStats.get(student.studentId) || { average: 0, subjectCount: 0 };
+    const overallGrade = stats.subjectCount ? calculateResultGrade(stats.average, gradeScale) : "";
+    const overallRemark = getRemarkForGrade(overallGrade, loadRemarkBands());
     const classRank = classRanks.get(student.studentId);
     const schoolRank = schoolRanks.get(student.studentId);
 
@@ -1502,6 +1563,11 @@ function renderReportCard() {
           <div><span>Subjects Offered</span><strong>${stats.subjectCount}</strong></div>
           <div><span>Class Rank</span><strong>${classRank ? ordinal(classRank.position) + " / " + classRank.total : "N/A"}</strong></div>
           <div><span>School Overall Rank</span><strong>${schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "N/A"}</strong></div>
+        </section>
+
+        <section class="report-card-remark">
+          <span>Overall Remark</span>
+          <strong>${escapeHtml(overallRemark || "N/A")}</strong>
         </section>
 
         <section class="report-card-section">
