@@ -1520,7 +1520,11 @@ function renderReportCard() {
           <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
           <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
         </div>
-        <div class="form-actions"><button class="primary-button" type="submit">Load Report Card</button></div>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Load Report Card</button>
+          <button class="small-button" type="button" id="print-class-reports">Print Class</button>
+          <button class="small-button" type="button" id="print-all-reports">Print All</button>
+        </div>
       </form>
     </div>
     <div id="report-card-output"></div>
@@ -1533,6 +1537,41 @@ function renderReportCard() {
     const classStudents = students.filter((student) => student.classId === classSelect.value);
     studentSelect.innerHTML = '<option value="">Select student</option>' +
       classStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)}</option>`).join("");
+  });
+
+  const printBatchReports = (studentList, label) => {
+    const published = loadPublishedReports();
+    const printable = [];
+    for (const student of studentList) {
+      const key = reportPublishKey(school, student);
+      if (!published[key]) continue;
+      const classItem = classes.find((item) => item.classId === student.classId);
+      if (!classItem) continue;
+      classSelect.value = classItem.classId;
+      studentSelect.innerHTML = '<option value="' + escapeHtml(student.studentId) + '">' + escapeHtml(student.name) + '</option>';
+      studentSelect.value = student.studentId;
+      document.querySelector("#report-card-selector").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      const paper = document.querySelector("#report-card-output .report-card-paper");
+      if (paper) {
+        const clone = paper.cloneNode(true);
+        clone.querySelectorAll(".report-card-actions,.report-card-custom-remarks").forEach((el) => el.remove());
+        printable.push(clone.outerHTML);
+      }
+    }
+    if (!printable.length) {
+      alert("No published report cards are available for " + label + ".");
+      return;
+    }
+    printReportCards(printable.join(""), "Published Report Cards — " + label);
+  };
+
+  document.querySelector("#print-class-reports").addEventListener("click", () => {
+    if (!classSelect.value) { alert("Select a class first."); return; }
+    printBatchReports(students.filter((student) => student.classId === classSelect.value), classes.find((item) => item.classId === classSelect.value)?.name || "Class");
+  });
+
+  document.querySelector("#print-all-reports").addEventListener("click", () => {
+    printBatchReports(students, "All Classes");
   });
 
   document.querySelector("#remark-bands-form").addEventListener("submit", (event) => {
