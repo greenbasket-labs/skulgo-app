@@ -1264,12 +1264,11 @@ const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
 const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
 const REMARK_BANDS_STORAGE_KEY = "skulgo.admin.remark-bands.v1";
 const DEFAULT_REMARK_BANDS = [
-  { label: "A", remark: "Excellent" },
-  { label: "B", remark: "Very Good" },
-  { label: "C", remark: "Good" },
-  { label: "D", remark: "Fair" },
-  { label: "E", remark: "Pass" },
-  { label: "F", remark: "Needs Improvement" }
+  { label: "1", title: "Excellent", minimumAverage: 70, remark: "Outstanding performance. Keep reaching for greater heights." },
+  { label: "2", title: "Very Good", minimumAverage: 60, remark: "Very good performance. Continue working hard and aim even higher." },
+  { label: "3", title: "Good", minimumAverage: 50, remark: "Good performance. Keep pushing yourself to achieve even more." },
+  { label: "4", title: "Fair", minimumAverage: 40, remark: "A fair performance. Put in more effort next term and you can improve." },
+  { label: "5", title: "Needs Improvement", minimumAverage: 0, remark: "Do not give up. Stay focused and work consistently; you can improve." }
 ];
 
 function loadRemarkBands() {
@@ -1285,9 +1284,10 @@ function saveRemarkBands(bands) {
   writeStorage(REMARK_BANDS_STORAGE_KEY, JSON.stringify({ bands }));
 }
 
-function getRemarkForGrade(grade, remarkBands) {
-  if (!grade) return "";
-  return remarkBands.bands.find((band) => String(band.label).toUpperCase() === String(grade).toUpperCase())?.remark || "";
+function getRemarkForAverage(average, remarkBands) {
+  if (!Number.isFinite(Number(average)) || !remarkBands?.bands?.length) return null;
+  return [...remarkBands.bands].sort((a,b) => Number(b.minimumAverage ?? 0) - Number(a.minimumAverage ?? 0))
+    .find((band) => Number(average) >= Number(band.minimumAverage ?? 0)) || null;
 }
 
 function loadResultsRecords() {
@@ -1462,13 +1462,12 @@ function renderReportCard() {
         <div class="report-card-remarks-body">
           <p class="muted">Set the remark that should appear for each performance grade. Changes are saved on this device.</p>
           <form id="remark-bands-form">
-            <div class="report-card-remarks-grid">
-              ${remarkBands.bands.map((band, index) => `
-                <label>Grade ${escapeHtml(band.label)}
-                  <input name="remark-${index}" value="${escapeHtml(band.remark || "")}" placeholder="Remark">
+            <div class="report-card-remarks-grid">${remarkBands.bands.map((band, index) => `<label>Level ${escapeHtml(band.label)} — ${escapeHtml(band.title || '')}
+                  <input type="number" min="0" max="100" step="0.01" name="minimum-${index}" value="${escapeHtml(band.minimumAverage ?? '')}" placeholder="Minimum average">
                 </label>
-              `).join("")}
-            </div>
+                <label>Default remark
+                  <input name="remark-${index}" value="${escapeHtml(band.remark || '')}" placeholder="Custom remark">
+                </label>`).join('')}</div>
             <div class="form-actions"><button class="primary-button" type="submit">Save Remark Bands</button></div>
           </form>
         </div>
@@ -1500,8 +1499,9 @@ function renderReportCard() {
     const current = loadRemarkBands().bands;
     const next = current.map((band, index) => ({
       ...band,
+      minimumAverage: Number(data.get(`minimum-${index}`)),
       remark: String(data.get(`remark-${index}`) || "").trim()
-    }));
+    })).sort((a,b) => Number(b.minimumAverage) - Number(a.minimumAverage));
     saveRemarkBands(next);
     event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>Remark bands saved successfully.</strong></div>');
   });
@@ -1532,7 +1532,9 @@ function renderReportCard() {
     const attendanceRate = attendanceTotal ? Math.round((present / attendanceTotal) * 100) : 0;
     const stats = studentStats.get(student.studentId) || { average: 0, subjectCount: 0 };
     const overallGrade = stats.subjectCount ? calculateResultGrade(stats.average, gradeScale) : "";
-    const overallRemark = getRemarkForGrade(overallGrade, loadRemarkBands());
+    const overallBand = stats.subjectCount ? getRemarkForAverage(stats.average, loadRemarkBands()) : null;
+    const overallRemark = overallBand?.remark || "";
+    const defaultPrincipalRemark = overallBand ? `A ${overallBand.title.toLowerCase()} performance. ${overallBand.remark}` : "";
     const classRank = classRanks.get(student.studentId);
     const schoolRank = schoolRanks.get(student.studentId);
 
@@ -1568,6 +1570,15 @@ function renderReportCard() {
         <section class="report-card-remark">
           <span>Overall Remark</span>
           <strong>${escapeHtml(overallRemark || "N/A")}</strong>
+        </section>
+
+        <section class="report-card-remarks-section">
+          <div class="report-card-remark"><span>Overall Performance</span><strong>${escapeHtml(overallBand ? "Level " + overallBand.label + " — " + overallBand.title : "N/A")}</strong><p>${escapeHtml(overallRemark || "N/A")}</p></div>
+          <div class="report-card-custom-remarks">
+            <label>Class Teacher's Remark<textarea id="class-teacher-remark" rows="2" placeholder="Enter a custom class teacher remark..."></textarea></label>
+            <label>Principal's Remark<textarea id="principal-remark" rows="2">${escapeHtml(defaultPrincipalRemark)}</textarea></label>
+            <label>Encouragement<textarea id="encouragement-remark" rows="2" placeholder="Enter an encouraging message..."></textarea></label>
+          </div>
         </section>
 
         <section class="report-card-section">
