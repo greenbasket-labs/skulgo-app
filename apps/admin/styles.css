@@ -123,3 +123,57 @@ tr:last-child td { border-bottom:0; }
 .attendance-check input:focus-visible + .attendance-check-box { outline:2px solid #9ca3af; outline-offset:2px; }
 
 .attendance-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(70px,1fr));gap:10px;margin-top:16px}.attendance-summary-grid>div{background:#f7f9fc;border:1px solid #edf0f4;border-radius:10px;padding:12px;text-align:center}.attendance-summary-grid span{display:block;font-size:11px;color:#68758a;font-weight:700}.attendance-summary-grid strong{display:block;font-size:20px;margin-top:3px}@media(max-width:650px){.attendance-summary-grid{grid-template-columns:repeat(3,1fr)}}
+
+
+/* Report Card v1 — modern A4-style layout */
+.report-card-selector-wrap{max-width:900px}
+.report-card-paper{max-width:900px;margin:28px auto 10px;background:#fff;border:1px solid #dfe4ea;border-radius:14px;box-shadow:0 8px 30px rgba(15,23,42,.06);padding:34px;color:#172033}
+.report-card-header{display:flex;justify-content:space-between;gap:28px;align-items:flex-start;padding-bottom:24px;border-bottom:2px solid #172033}
+.report-card-kicker{font-size:10px;letter-spacing:2px;font-weight:800;color:#667085;margin-bottom:7px}
+.report-card-header h2{font-size:25px;margin:0 0 7px;letter-spacing:-.3px}
+.report-card-header p{margin:3px 0;color:#667085;font-size:12px}
+.report-card-title{text-align:right;min-width:150px}
+.report-card-title span{display:block;font-size:11px;letter-spacing:1.8px;font-weight:800;color:#667085}
+.report-card-title strong{display:block;margin-top:7px;font-size:13px}
+.report-card-student{display:grid;grid-template-columns:2fr 1.35fr .9fr 1.25fr;border:1px solid #e5e7eb;border-radius:10px;margin:22px 0 14px;overflow:hidden}
+.report-card-student>div{padding:13px 14px;border-right:1px solid #e5e7eb}
+.report-card-student>div:last-child{border-right:0}
+.report-card-student span,.report-card-summary span,.report-card-attendance span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#667085;font-weight:700;margin-bottom:5px}
+.report-card-student strong{font-size:13px;line-height:1.3}
+.report-card-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
+.report-card-summary>div{padding:15px;border-radius:10px;background:#f7f8fa;border:1px solid #e7eaf0}
+.report-card-summary strong{font-size:19px}
+.report-card-section{margin-top:25px}
+.report-card-section-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.report-card-section-heading h3{margin:0!important;font-size:14px;letter-spacing:.1px}
+.report-card-section-heading span{font-size:11px;color:#667085}
+.report-card-table-wrap{border:1px solid #dfe4ea;border-radius:9px;overflow:hidden}
+.report-card-table{width:100%;border-collapse:collapse;min-width:0}
+.report-card-table th{background:#172033;color:#fff;border:0;padding:11px 13px;font-size:11px;text-transform:uppercase;letter-spacing:.55px}
+.report-card-table td{padding:12px 13px;border-bottom:1px solid #edf0f3;font-size:13px}
+.report-card-table tr:last-child td{border-bottom:0}
+.report-card-table td:not(:first-child){text-align:center}
+.report-card-table th:not(:first-child){text-align:center}
+.report-card-empty{text-align:center!important;color:#667085!important;padding:22px!important}
+.report-card-attendance{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.report-card-attendance>div{border:1px solid #e5e7eb;border-radius:10px;padding:15px;text-align:center}
+.report-card-attendance strong{font-size:20px}
+.report-card-footer{display:flex;justify-content:space-between;gap:12px;margin-top:30px;padding-top:14px;border-top:1px solid #e5e7eb;color:#7a8494;font-size:10px}
+
+@media(max-width:760px){
+  .report-card-paper{margin:20px 0 0;padding:20px;border-radius:10px}
+  .report-card-header{flex-direction:column}
+  .report-card-title{text-align:left}
+  .report-card-student{grid-template-columns:1fr 1fr}
+  .report-card-student>div:nth-child(2){border-right:0}
+  .report-card-student>div:nth-child(-n+2){border-bottom:1px solid #e5e7eb}
+  .report-card-summary{grid-template-columns:1fr 1fr}
+}
+@media(max-width:500px){
+  .report-card-student{grid-template-columns:1fr}
+  .report-card-student>div{border-right:0!important;border-bottom:1px solid #e5e7eb}
+  .report-card-student>div:last-child{border-bottom:0}
+  .report-card-summary{grid-template-columns:1fr}
+  .report-card-attendance{grid-template-columns:1fr}
+  .report-card-footer{flex-direction:column}
+}
