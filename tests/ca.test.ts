@@ -8,7 +8,7 @@ import type { AdmissionStudentRepository } from "../packages/admission/src/repos
 import type { Student } from "../packages/admission/src/model";
 import type { SchoolContract } from "../packages/school/src/contract";
 
-const assignment: TeachingAssignment = { assignmentId:"assign-1", schoolId:"school-1", teacherId:"teacher-1", classId:"class-1", subjectId:"subject-1", status:"ACTIVE", createdAt:"2026-10-03T08:00:00.000Z" };
+const assignment: TeachingAssignment = { assignmentId:"assign-1", schoolId:"school-1", teacherId:"teacher-1", classId:"class-1", assignmentType:"SUBJECT_TEACHER", subjectId:"subject-1", status:"ACTIVE", createdAt:"2026-10-03T08:00:00.000Z" };
 const student: Student = { studentId:"student-1", schoolId:"school-1", admissionId:"adm-1", name:"Musa", classId:"class-1", createdAt:"2026-10-03T08:00:00.000Z" };
 
 function service() {
