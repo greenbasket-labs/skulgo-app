@@ -33,14 +33,62 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>SkulGo Offline</title>
-            <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:60px auto;padding:24px}a{display:block;padding:16px;margin:12px 0;border:1px solid #ddd;border-radius:12px;text-decoration:none}</style>
+            <meta name="theme-color" content="#111827">
+            <title>SkulGo App</title>
+            <style>
+              :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;background:#f8fafc}
+              *{box-sizing:border-box}
+              body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+              main{width:min(520px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:36px;box-shadow:0 18px 50px rgba(15,23,42,.08)}
+              .brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}
+              .mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#111827;color:#fff;font-weight:800;font-size:22px}
+              h1{margin:0;font-size:28px}
+              .eyebrow{margin:0 0 6px;color:#64748b;font-size:13px}
+              .intro{color:#64748b;line-height:1.6;margin:0 0 24px}
+              .choice{width:100%;display:block;text-align:left;padding:20px;margin:12px 0;border:1px solid #e5e7eb;border-radius:16px;background:#fff;color:#111827;cursor:pointer}
+              .choice:hover{border-color:#94a3b8;background:#f8fafc}
+              .choice strong{display:block;font-size:18px;margin-bottom:5px}
+              .choice span{color:#64748b}
+              .note{font-size:12px;color:#64748b;margin-top:24px}
+              .hidden{display:none}
+            </style>
           </head>
           <body>
-            <h1>SkulGo Offline</h1>
-            <p>Install the workspace you need. Complete the first load while online, then the app shell can work offline.</p>
-            <a href="./admin/">Install / open Admin</a>
-            <a href="./teacher/">Install / open Teacher</a>
+            <main>
+              <div class="brand">
+                <div class="mark">S</div>
+                <div>
+                  <p class="eyebrow">Offline school records</p>
+                  <h1>SkulGo App</h1>
+                </div>
+              </div>
+              <section id="chooser">
+                <p class="intro">Choose how you use SkulGo. Your choice is saved on this device so you will go directly to your app next time.</p>
+                <button class="choice" data-role="admin">
+                  <strong>Admin</strong>
+                  <span>School administration and records</span>
+                </button>
+                <button class="choice" data-role="teacher">
+                  <strong>Teacher</strong>
+                  <span>Teaching, attendance and student records</span>
+                </button>
+                <p class="note">Your school data stays on your device. SkulGo does not require an online database for core use.</p>
+              </section>
+            </main>
+            <script>
+              (() => {
+                const key = "skulgo.app.role.v1";
+                const role = localStorage.getItem(key);
+                const go = value => {
+                  localStorage.setItem(key, value);
+                  window.location.href = value === "admin" ? "./admin/" : "./teacher/";
+                };
+                if (role === "admin" || role === "teacher") go(role);
+                document.querySelectorAll("[data-role]").forEach(button => {
+                  button.addEventListener("click", () => go(button.dataset.role));
+                });
+              })();
+            </script>
           </body>
           </html>
           EOF
