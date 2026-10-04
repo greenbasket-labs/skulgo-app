@@ -74,9 +74,11 @@ export class IdentityRepository {
         school_id TEXT NOT NULL,
         teacher_user_id TEXT NOT NULL,
         class_id TEXT NOT NULL,
-        subject_id TEXT NOT NULL,
+        assignment_type TEXT NOT NULL,
+        subject_id TEXT,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
         created_at TEXT NOT NULL,
-        UNIQUE (school_id, class_id, subject_id)
+        UNIQUE (school_id, class_id, assignment_type, subject_id)
       )
     `);
     try {
@@ -161,49 +163,26 @@ export class IdentityRepository {
   async saveTeacherAssignment(item: LocalTeacherAssignment): Promise<void> {
     await this.db.run(
       `INSERT INTO local_teacher_assignments
-       (assignment_id, school_id, teacher_user_id, class_id, subject_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        item.assignmentId,
-        item.schoolId,
-        item.teacherUserId,
-        item.classId,
-        item.subjectId,
-        item.createdAt,
-      ],
+       (assignment_id, school_id, teacher_user_id, class_id, assignment_type, subject_id, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [item.assignmentId, item.schoolId, item.teacherUserId, item.classId, item.assignmentType, item.subjectId ?? null, item.status, item.createdAt],
     );
   }
 
-  async findTeacherAssignment(
-    schoolId: string,
-    teacherUserId: string,
-    classId: string,
-    subjectId: string,
-  ): Promise<LocalTeacherAssignment | undefined> {
-    const row = await this.db.get<{
-      assignment_id: string;
-      school_id: string;
-      teacher_user_id: string;
-      class_id: string;
-      subject_id: string;
-      created_at: string;
-    }>(
-      `SELECT * FROM local_teacher_assignments
-       WHERE school_id = ? AND teacher_user_id = ?
-       AND class_id = ? AND subject_id = ?`,
+  async findClassMasterAssignment(schoolId: string, teacherUserId: string, classId: string): Promise<LocalTeacherAssignment | undefined> {
+    const row = await this.db.get<any>(
+      `SELECT * FROM local_teacher_assignments WHERE school_id = ? AND teacher_user_id = ? AND class_id = ? AND assignment_type = 'CLASS_MASTER' AND status = 'ACTIVE'`,
+      [schoolId, teacherUserId, classId],
+    );
+    return row ? { assignmentId: row.assignment_id, schoolId: row.school_id, teacherUserId: row.teacher_user_id, classId: row.class_id, assignmentType: row.assignment_type, subjectId: row.subject_id ?? undefined, status: row.status, createdAt: row.created_at } : undefined;
+  }
+
+  async findTeacherAssignment(schoolId: string, teacherUserId: string, classId: string, subjectId: string): Promise<LocalTeacherAssignment | undefined> {
+    const row = await this.db.get<any>(
+      `SELECT * FROM local_teacher_assignments WHERE school_id = ? AND teacher_user_id = ? AND class_id = ? AND assignment_type = 'SUBJECT_TEACHER' AND subject_id = ? AND status = 'ACTIVE'`,
       [schoolId, teacherUserId, classId, subjectId],
     );
-
-    return row
-      ? {
-          assignmentId: row.assignment_id,
-          schoolId: row.school_id,
-          teacherUserId: row.teacher_user_id,
-          classId: row.class_id,
-          subjectId: row.subject_id,
-          createdAt: row.created_at,
-        }
-      : undefined;
+    return row ? { assignmentId: row.assignment_id, schoolId: row.school_id, teacherUserId: row.teacher_user_id, classId: row.class_id, assignmentType: row.assignment_type, subjectId: row.subject_id, status: row.status, createdAt: row.created_at } : undefined;
   }
 
   async listStudents(
