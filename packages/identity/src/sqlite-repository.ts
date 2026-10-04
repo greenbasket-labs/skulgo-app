@@ -13,6 +13,11 @@ export class IdentityRepository {
   constructor(private readonly db: SqliteDatabase) {}
 
   async initialize(): Promise<void> {
+    const assignmentColumns = await this.db.all<{ name: string }>("PRAGMA table_info(local_teacher_assignments)");
+    if (assignmentColumns.length > 0 && !assignmentColumns.some((column) => column.name === "assignment_type")) {
+      await this.db.run("ALTER TABLE local_teacher_assignments RENAME TO local_teacher_assignments_legacy");
+    }
+
     await this.db.run(`
       CREATE TABLE IF NOT EXISTS local_schools (
         school_id TEXT PRIMARY KEY,
