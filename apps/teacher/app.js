@@ -86,7 +86,7 @@ function renderAttendance(classId){
  const s=state(), c=s.classes.find(x=>x.id===classId);if(!c||c.role!=="CLASS_MASTER")return renderClasses();
  const today=new Date().toISOString().slice(0,10);
  const records=Array.isArray(s.attendance)?s.attendance:[];
- page.innerHTML='<div class="section-heading"><div><h2>Attendance</h2><p class="muted">'+esc(c.name)+' · Tick students present</p></div><button class="small-button" id="back-attendance">Back</button></div>'+
+ page.innerHTML='<div class="section-heading"><div><h2>Attendance</h2><p class="muted">'+esc(c.name)+' · Mark students present</p></div><button class="small-button" id="back-attendance">Back</button></div>'+
  '<form class="form-card" id="attendance-form"><div class="form-grid"><label>Date<input name="date" type="date" value="'+today+'" required></label><label>Term<select name="term"><option>First Term</option><option>Second Term</option><option>Third Term</option></select></label></div>'+
  '<div class="card"><h3>Students</h3>'+(c.students.length?c.students.map(st=>'<label class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+'</div></div><input class="attendance-check" type="checkbox" name="present" value="'+esc(st.studentId)+'" aria-label="Present '+esc(st.name)+'"></label>').join(""):'<div class="empty">No students in this class yet.</div>')+
  '</div><div class="form-actions"><button class="primary-button">Save Attendance</button></div><p class="form-message" id="attendance-message"></p></form>'+
@@ -118,7 +118,7 @@ function renderAttendance(classId){
   const present=new Set(saved.filter(r=>r.status==="PRESENT").map(r=>r.studentId));
   if(saved.length&&saved[0].term)termInput.value=saved[0].term;
   form.querySelectorAll("[name=present]").forEach(box=>box.checked=present.has(box.value));
-  document.querySelector("#attendance-message").textContent=saved.length?"Saved attendance: ticked = PRESENT, unticked = ABSENT.":"";
+  document.querySelector("#attendance-message").textContent=saved.length?"Attendance saved.":"";
   renderSummary();
  }
  dateInput.onchange=loadDate;termInput.onchange=()=>{loadDate()};periodInput.onchange=renderSummary;loadDate();
