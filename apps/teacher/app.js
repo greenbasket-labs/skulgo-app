@@ -276,51 +276,89 @@ function readJsonFile() {
     input.click();
   });
 }
+
 function renderTransfer() {
   const s = state();
   page.innerHTML = '<div class="section-heading"><div><h2>Export / Import</h2><p class="muted">Move class and subject records by file. No live connection is required.</p></div></div>' +
     '<div class="cards"><div class="card"><h3>Import from Admin</h3><p>Class Master imports the full class. Subject Teacher imports the assigned subject and its students.</p><button class="primary-button" id="import-admin">Import class package</button><p class="form-message" id="import-message"></p></div>' +
     '<div class="card"><h3>Export to Admin</h3><p>Export attendance, CA, exam and result records for the school Admin.</p><button class="primary-button" id="export-admin">Export teacher submission</button><p class="form-message" id="export-message"></p></div></div>';
+
   document.querySelector("#import-admin").onclick = async () => {
     const message = document.querySelector("#import-message");
     try {
       const pkg = await readJsonFile();
       if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "ADMIN_TO_TEACHER") throw new Error("This is not an Admin class package.");
-      if (!pkg.teacher?.teacherId || (s.teacher?.teacherId && pkg.teacher.teacherId !== s.teacher.teacherId)) throw new Error("This package is for another Teacher.");
+      if (!pkg.teacher?.teacherId) throw new Error("The package has no Teacher ID.");
+      if (s.teacher?.teacherId && pkg.teacher.teacherId !== s.teacher.teacherId) throw new Error("This package is for another Teacher.");
       const assignment = pkg.assignment || {};
       if (!["CLASS_MASTER","SUBJECT_TEACHER"].includes(assignment.assignmentType)) throw new Error("Invalid teacher assignment.");
       if (!pkg.class?.classId || !pkg.class?.name) throw new Error("The package has no valid class.");
-      const students = Array.isArray(pkg.students) ? pkg.students : [], subjects = Array.isArray(pkg.subjects) ? pkg.subjects : [];
+
+      const students = Array.isArray(pkg.students) ? pkg.students : [];
+      const subjects = Array.isArray(pkg.subjects) ? pkg.subjects : [];
       let target = s.classes.find(c => c.sourceClassId === pkg.class.classId);
-      if (!target) { target = { id:id("class"), sourceClassId:pkg.class.classId, name:pkg.class.name, role:assignment.assignmentType, students:[] }; s.classes.push(target); }
-      target.name = pkg.class.name; target.role = assignment.assignmentType; target.sourceClassId = pkg.class.classId;
+      if (!target) {
+        target = { id:id("class"), sourceClassId:pkg.class.classId, name:pkg.class.name, role:assignment.assignmentType, students:[] };
+        s.classes.push(target);
+      }
+      target.name = pkg.class.name;
+      target.role = assignment.assignmentType;
+      target.sourceClassId = pkg.class.classId;
+
       const byStudent = new Map((target.students || []).map(st => [st.studentId, st]));
       students.forEach(st => byStudent.set(st.studentId, { studentId:st.studentId, name:st.name, sex:st.sex || "", status:st.status || "ACTIVE" }));
       target.students = [...byStudent.values()];
+
       for (const sub of subjects) {
         let local = s.subjects.find(x => x.sourceSubjectId === sub.subjectId && x.classId === target.id);
-        if (!local) { local = { id:id("subject"), sourceSubjectId:sub.subjectId, name:sub.name, classId:target.id, className:target.name, studentIds:[...(sub.studentIds || [])] }; s.subjects.push(local); }
-        else { local.name=sub.name; local.studentIds=[...(sub.studentIds || [])]; local.className=target.name; }
+        if (!local) {
+          local = { id:id("subject"), sourceSubjectId:sub.subjectId, name:sub.name, classId:target.id, className:target.name, studentIds:[...(sub.studentIds || [])] };
+          s.subjects.push(local);
+        } else {
+          local.name=sub.name; local.studentIds=[...(sub.studentIds || [])]; local.className=target.name;
+        }
       }
-      write(s); message.textContent = "Class package imported successfully."; render("classes");
+
+      s.teacher = { ...(s.teacher || {}), teacherId:pkg.teacher.teacherId, name:pkg.teacher.name || s.teacher?.name || "Teacher", schoolId:pkg.school?.schoolId || s.teacher?.schoolId || "" };
+      s.transfer = { schoolId:pkg.school?.schoolId || "", session:pkg.school?.session || null, term:pkg.school?.term || null };
+      write(s);
+      message.textContent = "Class package imported successfully.";
+      render("classes");
     } catch (error) { message.textContent = error?.message || "Could not import Admin package."; }
   };
+
   document.querySelector("#export-admin").onclick = () => {
+    const message = document.querySelector("#export-message");
+    if (!s.teacher?.teacherId || !s.teacher?.schoolId) { message.textContent = "Import your class package from Admin first."; return; }
     const firstClass = s.classes[0];
-    if (!s.teacher?.teacherId || !firstClass) { document.querySelector("#export-message").textContent = "Import a class package first."; return; }
-    const subjectIds = new Set(s.subjects.filter(x => x.classId === firstClass.id).map(x => x.sourceSubjectId || x.id));
+    if (!firstClass) { message.textContent = "Import a class package first."; return; }
+
+    const localSubjectToSource = new Map(s.subjects.filter(x => x.classId === firstClass.id).map(x => [x.id, x.sourceSubjectId || x.id]));
     const results = [];
-    for (const ca of (s.ca || [])) for (const score of (ca.scores || [])) results.push({ resultId:ca.id+":"+score.studentId, studentId:score.studentId, subjectId:ca.sourceSubjectId || ca.subjectId, ca:score.score });
-    for (const exam of (s.exams || [])) for (const score of (exam.scores || [])) results.push({ resultId:exam.id+":"+score.studentId, studentId:score.studentId, subjectId:exam.sourceSubjectId || exam.subjectId, exam:score.score });
+    for (const ca of (s.ca || [])) {
+      const subjectId = localSubjectToSource.get(ca.subjectId) || ca.subjectId;
+      for (const score of (ca.scores || [])) results.push({ resultId:ca.id+":"+score.studentId, studentId:score.studentId, subjectId, ca:score.score, sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
+    }
+    for (const exam of (s.exams || [])) {
+      const subjectId = localSubjectToSource.get(exam.subjectId) || exam.subjectId;
+      for (const score of (exam.scores || [])) results.push({ resultId:exam.id+":"+score.studentId, studentId:score.studentId, subjectId, exam:score.score, sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
+    }
+
     const pkg = {
-      skulgoTransfer:"v1", direction:"TEACHER_TO_ADMIN", exportedAt:new Date().toISOString(),
-      school:{ schoolId:s.teacher.schoolId || "" }, teacher:{ teacherId:s.teacher.teacherId, name:s.teacher.name },
+      skulgoTransfer:"v1",
+      direction:"TEACHER_TO_ADMIN",
+      exportedAt:new Date().toISOString(),
+      school:{ schoolId:s.teacher.schoolId, session:s.transfer?.session || null, term:s.transfer?.term || null },
+      teacher:{ teacherId:s.teacher.teacherId, name:s.teacher.name },
       class:{ classId:firstClass.sourceClassId || firstClass.id, name:firstClass.name },
       subjects:s.subjects.filter(x => x.classId === firstClass.id).map(x => ({ subjectId:x.sourceSubjectId || x.id, id:x.sourceSubjectId || x.id, name:x.name, classId:firstClass.sourceClassId || firstClass.id })),
-      records:{ attendance:(s.attendance || []).filter(r => r.classId === firstClass.id), results:results.filter(r => subjectIds.has(r.subjectId)) }
+      records:{
+        attendance:(s.attendance || []).filter(r => r.classId === firstClass.id).map(r => ({ ...r, classId:firstClass.sourceClassId || firstClass.id, sessionId:r.sessionId || s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:r.termId || s.transfer?.term?.termId || s.transfer?.term?.name || "" })),
+        results
+      }
     };
     downloadJson("skulgo-teacher-"+(s.teacher.name || "submission").replace(/[^a-z0-9]+/gi,"-")+".json",pkg);
-    document.querySelector("#export-message").textContent = "Teacher submission exported.";
+    message.textContent = "Teacher submission exported.";
   };
 }
 
