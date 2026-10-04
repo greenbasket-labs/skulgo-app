@@ -1384,17 +1384,9 @@ function renderReportCard() {
   const studentStats = new Map();
   for (const student of students) {
     const studentRecords = records.filter((record) => record.studentId === student.studentId);
-    const validTotals = studentRecords
-      .map((record) => calculateResultTotal(record))
-      .filter((total) => Number.isFinite(total));
-    const average = validTotals.length
-      ? validTotals.reduce((sum, total) => sum + total, 0) / validTotals.length
-      : 0;
-    studentStats.set(student.studentId, {
-      student,
-      subjectCount: validTotals.length,
-      average
-    });
+    const validTotals = studentRecords.map((record) => calculateResultTotal(record)).filter((total) => Number.isFinite(total));
+    const average = validTotals.length ? validTotals.reduce((sum, total) => sum + total, 0) / validTotals.length : 0;
+    studentStats.set(student.studentId, { student, subjectCount: validTotals.length, average });
   }
 
   const ranked = [...studentStats.values()]
@@ -1403,26 +1395,23 @@ function renderReportCard() {
 
   const classRanks = new Map();
   for (const classItem of classes) {
+    const classRanked = ranked.filter((item) => item.student.classId === classItem.classId);
     let position = 0;
     let previousAverage = null;
-    let counted = 0;
-    ranked
-      .filter((item) => item.student.classId === classItem.classId)
-      .forEach((item) => {
-        counted += 1;
-        if (previousAverage === null || item.average !== previousAverage) position = counted;
-        classRanks.set(item.student.studentId, { position, total: ranked.filter((candidate) => candidate.student.classId === classItem.classId).length });
-        previousAverage = item.average;
-      });
+    classRanked.forEach((item, index) => {
+      const counted = index + 1;
+      if (previousAverage === null || item.average !== previousAverage) position = counted;
+      classRanks.set(item.student.studentId, { position, total: classRanked.length });
+      previousAverage = item.average;
+    });
   }
 
   const schoolRanks = new Map();
   let schoolPosition = 0;
   let previousSchoolAverage = null;
-  let schoolCounted = 0;
-  ranked.forEach((item) => {
-    schoolCounted += 1;
-    if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = schoolCounted;
+  ranked.forEach((item, index) => {
+    const counted = index + 1;
+    if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = counted;
     schoolRanks.set(item.student.studentId, { position: schoolPosition, total: ranked.length });
     previousSchoolAverage = item.average;
   });
@@ -1434,16 +1423,18 @@ function renderReportCard() {
   };
 
   page.innerHTML = `
-    <div class="section-heading">
-      <div><h2>Report Card</h2><p class="muted">Assemble the student's report from existing results, attendance and school information.</p></div>
-    </div>
-    <form class="form-card" id="report-card-selector">
-      <div class="form-grid">
-        <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
-        <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
+    <div class="report-card-selector-wrap">
+      <div class="section-heading">
+        <div><h2>Report Card</h2><p class="muted">Generate the student's term report from existing school records.</p></div>
       </div>
-      <div class="form-actions"><button class="primary-button" type="submit">Load Report Card</button></div>
-    </form>
+      <form class="form-card" id="report-card-selector">
+        <div class="form-grid">
+          <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+          <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
+        </div>
+        <div class="form-actions"><button class="primary-button" type="submit">Load Report Card</button></div>
+      </form>
+    </div>
     <div id="report-card-output"></div>
   `;
 
@@ -1485,31 +1476,58 @@ function renderReportCard() {
     const schoolRank = schoolRanks.get(student.studentId);
 
     document.querySelector("#report-card-output").innerHTML = `
-      <div class="card report-card">
-        <div class="section-heading">
-          <div><h3>${escapeHtml(school.name)}</h3><p class="muted">${escapeHtml(school.address || "")} ${escapeHtml(school.phone || "")} ${escapeHtml(school.email || "")}</p></div>
-        </div>
-        <div class="info-grid">
-          <div class="info-card"><span>Student</span><strong>${escapeHtml(student.name)}</strong></div>
-          <div class="info-card"><span>Student ID</span><strong>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</strong></div>
-          <div class="info-card"><span>Class</span><strong>${escapeHtml(classItem.name)}</strong></div>
-          <div class="info-card"><span>Session / Term</span><strong>${escapeHtml(school.session.name)} / ${escapeHtml(school.term.name)}</strong></div>
-          <div class="info-card"><span>Average</span><strong>${stats.subjectCount ? stats.average.toFixed(2) : "N/A"}</strong></div>
-          <div class="info-card"><span>Subjects Offered</span><strong>${stats.subjectCount}</strong></div>
-          <div class="info-card"><span>Class Rank</span><strong>${classRank ? ordinal(classRank.position) + " / " + classRank.total : "N/A"}</strong></div>
-          <div class="info-card"><span>School Overall Rank</span><strong>${schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "N/A"}</strong></div>
-        </div>
-        <h3>Academic Results</h3>
-        <div class="table-wrap"><table><thead><tr><th>Subject</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
-        <tbody>${resultRows.length ? resultRows.map((row) => `<tr><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.exam)}</td><td>${escapeHtml(row.total)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("") : '<tr><td colspan="4" class="empty">No result records for this student.</td></tr>'}</tbody></table></div>
-        <h3>Attendance</h3>
-        <div class="info-grid">
-          <div class="info-card"><span>Present</span><strong>${present}</strong></div>
-          <div class="info-card"><span>Absent</span><strong>${absent}</strong></div>
-          <div class="info-card"><span>Attendance Rate</span><strong>${attendanceRate}%</strong></div>
-          <div class="info-card"><span>Attendance Records</span><strong>${attendanceTotal}</strong></div>
-        </div>
-      </div>
+      <article class="report-card-paper">
+        <header class="report-card-header">
+          <div>
+            <div class="report-card-kicker">ACADEMIC REPORT</div>
+            <h2>${escapeHtml(school.name)}</h2>
+            <p>${escapeHtml(school.address || "")}</p>
+            <p>${escapeHtml([school.phone, school.email].filter(Boolean).join("  •  "))}</p>
+          </div>
+          <div class="report-card-title">
+            <span>REPORT CARD</span>
+            <strong>${escapeHtml(school.term.name)}</strong>
+          </div>
+        </header>
+
+        <section class="report-card-student">
+          <div><span>Student</span><strong>${escapeHtml(student.name)}</strong></div>
+          <div><span>Student ID</span><strong>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</strong></div>
+          <div><span>Class</span><strong>${escapeHtml(classItem.name)}</strong></div>
+          <div><span>Academic Session</span><strong>${escapeHtml(school.session.name)}</strong></div>
+        </section>
+
+        <section class="report-card-summary">
+          <div><span>Average</span><strong>${stats.subjectCount ? stats.average.toFixed(2) : "N/A"}</strong></div>
+          <div><span>Subjects Offered</span><strong>${stats.subjectCount}</strong></div>
+          <div><span>Class Rank</span><strong>${classRank ? ordinal(classRank.position) + " / " + classRank.total : "N/A"}</strong></div>
+          <div><span>School Overall Rank</span><strong>${schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "N/A"}</strong></div>
+        </section>
+
+        <section class="report-card-section">
+          <div class="report-card-section-heading"><h3>Academic Results</h3><span>${escapeHtml(school.term.name)}</span></div>
+          <div class="report-card-table-wrap">
+            <table class="report-card-table">
+              <thead><tr><th>Subject</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
+              <tbody>${resultRows.length ? resultRows.map((row) => `<tr><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.exam)}</td><td>${escapeHtml(row.total)}</td><td><strong>${escapeHtml(row.grade)}</strong></td></tr>`).join("") : '<tr><td colspan="4" class="report-card-empty">No result records for this student.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="report-card-section">
+          <div class="report-card-section-heading"><h3>Attendance</h3><span>${attendanceTotal} record${attendanceTotal === 1 ? "" : "s"}</span></div>
+          <div class="report-card-attendance">
+            <div><span>Present</span><strong>${present}</strong></div>
+            <div><span>Absent</span><strong>${absent}</strong></div>
+            <div><span>Attendance Rate</span><strong>${attendanceRate}%</strong></div>
+          </div>
+        </section>
+
+        <footer class="report-card-footer">
+          <span>${escapeHtml(school.name)}</span>
+          <span>${escapeHtml(school.session.name)} • ${escapeHtml(school.term.name)}</span>
+        </footer>
+      </article>
     `;
   });
 }
