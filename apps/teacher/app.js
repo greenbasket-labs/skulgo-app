@@ -48,14 +48,22 @@ function renderAddClass(){
  document.querySelector("#class-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget);const s=state();s.classes.push({id:id("class"),name:String(d.get("name")).trim(),role:String(d.get("role")),students:[]});write(s);renderClasses()};
 }
 function renderClass(classId){
- const s=state(), c=s.classes.find(x=>x.id===classId);if(!c)return renderClasses();
+ const s=state(),c=s.classes.find(x=>x.id===classId);if(!c)return renderClasses();
  const canRoster=c.role==="CLASS_MASTER";
- page.innerHTML='<div class="section-heading"><div><h2>'+esc(c.name)+'</h2><p class="muted">'+c.students.length+' students</p></div>'+(canRoster?'<div class="card-action"><button class="primary-button" id="attendance">Attendance</button> <button class="primary-button" id="add-student">+ Add Student</button></div>':"")+'</div><div class="card"><h3>Class role</h3><p>'+(canRoster?"Class Master — roster and attendance authority.":"Subject Teacher — subject work only; class roster remains with the Class Master.")+'</p></div><div class="card"><h3>Students</h3>'+(c.students.length?c.students.map(st=>'<div class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+'</div></div><span class="chip">'+esc(st.status||"ACTIVE")+'</span></div>').join(""):'<div class="empty">No local students in this class yet.</div>')+'</div>';
+ page.innerHTML='<div class="section-heading"><div><h2>'+esc(c.name)+'</h2><p class="muted">'+c.students.length+' students</p></div>'+(canRoster?'<div class="card-action"><button class="primary-button" id="attendance">Attendance</button> <button class="primary-button" id="add-student">+ Add Student</button></div>':"")+'</div><div class="card"><h3>Class role</h3><p>'+(canRoster?"Class Master — roster and attendance authority.":"Subject Teacher — subject work only; class roster remains with the Class Master.")+'</p></div><div class="card"><h3>Students</h3>'+(c.students.length?c.students.map(st=>'<div class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+'</div></div>'+(canRoster?'<select class="student-status" data-student-id="'+esc(st.studentId)+'" aria-label="Status for '+esc(st.name)+'"><option value="ACTIVE" '+((st.status||"ACTIVE")==="ACTIVE"?"selected":"")+'>ACTIVE</option><option value="DISABLED" '+(st.status==="DISABLED"?"selected":"")+'>DISABLED</option><option value="REMOVED" '+(st.status==="REMOVED"?"selected":"")+'>REMOVED</option></select>':'<span class="chip">'+esc(st.status||"ACTIVE")+'</span>')+'</div>').join(""):'<div class="empty">No local students in this class yet.</div>')+'</div>';
  if(canRoster){
   document.querySelector("#add-student").onclick=()=>renderAddStudent(classId);
   document.querySelector("#attendance").onclick=()=>renderAttendance(classId);
+  document.querySelectorAll(".student-status").forEach(select=>select.onchange=()=>{
+   const studentId=select.dataset.studentId,st=state(),target=st.classes.find(x=>x.id===classId),student=target?.students.find(x=>x.studentId===studentId);
+   if(!student)return;
+   student.status=select.value;
+   write(st);
+   renderClass(classId);
+  });
  }
 }
+
 function renderAddStudent(classId){
  const s=state(),c=s.classes.find(x=>x.id===classId);if(!c||c.role!=="CLASS_MASTER")return renderClasses();
  page.innerHTML='<div class="section-heading"><div><h2>Add Student</h2><p class="muted">'+esc(c.name)+' · Enter the Student ID supplied by the school/Admin.</p></div><button class="small-button" id="back-add-student">Back</button></div><form class="form-card" id="student-form"><div class="form-grid"><label>Full name<input name="name" required></label><label>Student ID<input name="studentId" required placeholder="e.g. AC/SS/2026/1042"></label><label>Gender<select name="sex"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></label></div><div class="form-actions"><button class="primary-button" type="submit">Save Student</button></div><p class="form-message" id="student-message"></p></form>';
