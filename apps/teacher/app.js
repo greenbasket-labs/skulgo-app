@@ -119,10 +119,12 @@ function renderSubject(subjectId){
  (students.length?'<div class="student-results">'+students.map(st=>{
    const caScore=studentCA(x.id,st.studentId);
    const examScore=studentExam(x.id,st.studentId);
+   const examEntered=hasExamEntry(x.id,st.studentId);
    const total=caScore+examScore;
    const overallMax=caMax+examMax;
-   const examEntered=hasExamEntry(x.id,st.studentId); const specialZeroExam=examEntered&&examMax===0&&examScore===0; const grade=!examEntered?"—":specialZeroExam?"S":overallMax>0?gradeFromPercentage((total/overallMax)*100):"—";
-   return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+' · '+esc(st.status||"ACTIVE")+'</div></div><div class="result-number"><span class="result-label">CA</span><strong>'+caScore+'</strong><small>/ '+caMax+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+examScore+'</strong><small>/ '+examMax+'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+total+'</strong><small>/ '+overallMax+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+grade+'</strong></div></div>';
+   const specialZeroExam=examEntered&&examMax===0&&examScore===0;
+   const grade=!examEntered?"—":specialZeroExam?"S":overallMax>0?gradeFromPercentage((total/overallMax)*100):"—";
+   return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+' · '+esc(st.status||"ACTIVE")+'</div></div><div class="result-number"><span class="result-label">CA</span><strong>'+caScore+'</strong><small>/ '+caMax+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+(examEntered?examScore:"—")+'</strong><small>'+ (examEntered?"/ "+examMax:"/ —") +'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+total+'</strong><small>/ '+overallMax+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+grade+'</strong></div></div>';
  }).join(""):'<div class="empty">No students assigned to this subject.</div>')+'</div></div>'+
  '<div class="card"><h3>CA assessments</h3>'+
  (ca.length?ca.map(a=>{
