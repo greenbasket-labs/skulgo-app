@@ -50,7 +50,7 @@ test("teacher records attendance offline, then syncs to admin", async () => {
   await identityRepository.initialize();
   await identityRepository.saveTeacherAssignment({ assignmentId:"a1", schoolId:"school-1", teacherUserId:"teacher-1", classId:"ss1", assignmentType:"CLASS_MASTER", status:"ACTIVE", createdAt:"2026-10-01T08:00:00.000Z" });
   await identityRepository.saveStudent({ studentId:"student-1", schoolId:"school-1", classId:"ss1", displayName:"Aisha", createdAt:"2026-10-01T08:00:00.000Z" });
-  const record = await recordAttendance(teacher, attendanceRepository, identityRepository, { schoolId:"school-1", teacherUserId:"teacher-1", deviceId:"teacher-phone", classId:"ss1", subjectId:"math", studentId:"student-1", sessionId:"2026-2027", termId:"first", date:"2026-10-01", status:"present" });
+  const record = await recordAttendance(teacher, attendanceRepository, identityRepository, { schoolId:"school-1", teacherUserId:"teacher-1", deviceId:"teacher-phone", classId:"ss1", studentId:"student-1", sessionId:"2026-2027", termId:"first", date:"2026-10-01", status:"present" });
   assert.equal((await localStore.get(record.recordId))?.recordId,record.recordId);
   assert.equal(admin.getRecord(record.recordId),undefined);
   assert.equal(teacherStore.pending().length,1);
