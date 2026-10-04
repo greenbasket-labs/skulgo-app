@@ -53,5 +53,16 @@ function renderAddSubject(){
  document.querySelector("#subject-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),c=s.classes.find(x=>x.id===d.get("classId"));const ids=d.get("membership")==="ALL"?c.students.filter(x=>x.status==="ACTIVE").map(x=>x.studentId):d.getAll("student");s.subjects.push({id:id("subject"),name:String(d.get("name")).trim(),classId:c.id,className:c.name,studentIds:ids});write(s);renderSubjects()};
 }
 function renderConnect(){page.innerHTML='<div class="section-heading"><div><h2>Connect to School</h2><p class="muted">Pair with Admin when a school workspace is available. Normal Teacher work remains local.</p></div></div><div class="card"><h3>Connection foundation</h3><p>Pairing and sync will use the shared SkulGo identity/assignment contracts. This screen is intentionally small until the connection flow is implemented.</p></div>'}
-function render(section){\n nav.forEach(b=>b.classList.toggle("active",b.dataset.section===section));\n title.textContent=labels[section]||"Home";\n if(section==="home") renderHome();\n else if(section==="classes") renderClasses();\n else if(section==="subjects") renderSubjects();\n else if(section==="received") page.innerHTML='<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';\n else if(section==="connect") renderConnect();\n else if(section==="settings") page.innerHTML='<div class="card"><h2>Settings</h2><p class="muted">Teacher profile and local workspace settings.</p></div>';\n else renderHome();\n sidebar.classList.remove("open");\n}
+function render(section){
+ nav.forEach(b=>b.classList.toggle("active",b.dataset.section===section));
+ title.textContent=labels[section]||"Home";
+ if(section==="home") renderHome();
+ else if(section==="classes") renderClasses();
+ else if(section==="subjects") renderSubjects();
+ else if(section==="received") page.innerHTML='<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';
+ else if(section==="connect") renderConnect();
+ else if(section==="settings") page.innerHTML='<div class="card"><h2>Settings</h2><p class="muted">Teacher profile and local workspace settings.</p></div>';
+ else renderHome();
+ sidebar.classList.remove("open");
+}
 nav.forEach(b=>b.onclick=()=>render(b.dataset.section));menu.onclick=()=>sidebar.classList.toggle("open");render("home");
