@@ -16,6 +16,14 @@ export function createAttendanceDutyOverview(
   summary: AttendanceSummary,
   viewer: { userId: string; canViewAll: boolean },
 ): AttendanceDutyOverview {
+  if (assignment.assignmentType !== "CLASS_MASTER") {
+    throw new Error("Attendance duty requires a Class Master assignment");
+  }
+
+  if (assignment.status !== "ACTIVE") {
+    throw new Error("Attendance duty assignment is not active");
+  }
+
   if (!viewer.canViewAll && viewer.userId !== assignment.teacherUserId) {
     throw new Error("Attendance duty overview not permitted");
   }
@@ -24,7 +32,6 @@ export function createAttendanceDutyOverview(
     assignmentId: assignment.assignmentId,
     assignedUserId: assignment.teacherUserId,
     classId: assignment.classId,
-    subjectId: assignment.subjectId,
     period,
     summary,
   };
