@@ -195,3 +195,10 @@ tr:last-child td { border-bottom:0; }
 .report-card-remark strong{font-size:16px}
 @media(max-width:650px){.report-card-remarks-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:450px){.report-card-remarks-grid{grid-template-columns:1fr}}
+
+.report-card-remarks-section{margin:0 0 25px}
+.report-card-remark{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;align-items:center}
+.report-card-remark p{grid-column:2;margin:0;color:#667085;font-size:12px}
+.report-card-custom-remarks{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.report-card-custom-remarks label{font-size:11px;font-weight:700;color:#667085}
+.report-card-custom-remarks textarea{display:block;width:100%;box-sizing:border-box;margin-top:5px;resize:vertical}
