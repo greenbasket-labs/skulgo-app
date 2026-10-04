@@ -42,11 +42,12 @@ The approved v1 feature surface is now in stabilization. Feature expansion is pa
 - [x] Report Card print/share
 - [x] Optional Report Card Revenue configuration
 - [ ] End-to-end Teacher → Sync → Admin → Report Card verification
+- [x] Installable offline web app shell for Admin + Teacher
 
 ### Stabilization gates
 
 - [x] Add clean-checkout CI workflow
-- [ ] npm ci
+- [ ] npm install on clean checkout
 - [ ] npm run typecheck
 - [ ] npm test
 - [ ] Manual Admin acceptance test
