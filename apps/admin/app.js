@@ -4,6 +4,7 @@ const labels = {
   classes: ["Classes", "Classes"],
   subjects: ["Subjects", "Subjects"],
   teachers: ["Teachers", "Teachers"],
+  assignments: ["Teaching Assignments", "Teaching Assignments"],
   attendance: ["Attendance", "Attendance"],
   results: ["Results", "Results"],
   "report-card": ["Report Card", "Report Card"],
@@ -907,7 +908,7 @@ function renderAssignments() {
         <h2>Teaching Assignments</h2>
         <p class="muted">Assign teachers to classes and subjects.</p>
       </div>
-      <button class="primary-button" id="new-assignment">New assignment</button>
+      <button type="button" class="primary-button" id="new-assignment">New assignment</button>
     </div>
 
     <div id="assignment-form"></div>
@@ -1028,6 +1029,7 @@ function renderAssignments() {
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      event.stopPropagation();
 
       const data = new FormData(form);
       const assignmentType = String(data.get("assignmentType") || "").trim();
@@ -1084,7 +1086,8 @@ function renderAssignments() {
       });
 
       saveAssignments(next);
-      renderAssignments();
+      nav.forEach((item) => item.classList.toggle("active", item.dataset.section === "assignments"));
+      render("assignments");
     });
   });
 
