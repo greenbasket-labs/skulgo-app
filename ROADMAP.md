@@ -139,3 +139,15 @@ Before freezing a module:
 ## Repository boundary
 
 SkulGo Offline is maintained separately from the existing online SkulGo repository. Work in this roadmap applies only to greenbasket-labs/skulgo-offline.
+
+## Optional Revenue / Paid Report Card Publishing
+
+- [x] Define school-level paid Report Card publishing configuration
+- [x] Allow school to enable/disable the option
+- [x] Allow school to configure fee amount in NGN
+- [x] Store intended 50% school / 50% SkulGo split
+- [ ] Connect secure payment provider
+- [ ] Create student-specific payment request/reference
+- [ ] Verify payment through provider webhook/server
+- [ ] Publish only after verified payment when paid publishing is enabled
+- [ ] Automate 50/50 settlement and revenue ledger
