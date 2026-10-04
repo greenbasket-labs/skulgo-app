@@ -5,6 +5,7 @@ import { canCreateTeacherAssignment } from "../packages/identity/src/assignments
 import { buildReportCard } from "../packages/report-card/src/build";
 import type { AttendanceRecord } from "../packages/attendance/src/model";
 import type { SubjectResultRecord } from "../packages/results/src/model";
+import type { LocalTeacherAssignment } from "../packages/identity/src/repository";
 
 const identity = {
   schoolId: "school-1",
@@ -67,7 +68,7 @@ function attendance(
 }
 
 test("one teacher owns a class + subject assignment", () => {
-  const existing = [{
+  const existing: LocalTeacherAssignment[] = [{
     assignmentId: "a1",
     schoolId: "school-1",
     teacherUserId: "teacher-math",
