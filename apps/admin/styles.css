@@ -202,3 +202,6 @@ tr:last-child td { border-bottom:0; }
 .report-card-custom-remarks{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
 .report-card-custom-remarks label{font-size:11px;font-weight:700;color:#667085}
 .report-card-custom-remarks textarea{display:block;width:100%;box-sizing:border-box;margin-top:5px;resize:vertical}
+
+.report-card-actions{display:flex;justify-content:flex-end;gap:8px;margin:18px 0 8px;flex-wrap:wrap}
+.report-card-actions button:disabled{opacity:.7;cursor:default}
