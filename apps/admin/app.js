@@ -1000,6 +1000,10 @@ function renderAssignments() {
           </label>
         </div>
 
+        <p class="muted" id="assignment-duty-help">
+          Class Master: responsible for attendance and class-level duties.
+        </p>
+
         <div class="form-actions">
           <button class="primary-button" type="submit">Save assignment</button>
         </div>
