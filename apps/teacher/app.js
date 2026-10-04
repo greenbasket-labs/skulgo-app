@@ -133,7 +133,10 @@ function renderSubject(subjectId){
  }).join(""):'<div class="empty">No CA assessment yet.</div>')+
  (exams.length?'<p class="muted" style="margin-top:14px">Exam records: '+exams.length+'</p>':"")+'</div>';
  document.querySelector("#back-subjects").onclick=renderSubjects;
- document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);\n const examButton=document.querySelector("#add-exam");\n examButton.textContent=exams.length?"Open Exam":"+ Add Exam";\n examButton.onclick=()=>exams.length?renderExam(exams[0].id):renderAddExam(subjectId);
+ document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);
+ const examButton=document.querySelector("#add-exam");
+ examButton.textContent=exams.length?"Open Exam":"+ Add Exam";
+ examButton.onclick=()=>exams.length?renderExam(exams[0].id):renderAddExam(subjectId);
  document.querySelectorAll("[data-open-ca]").forEach(b=>b.onclick=()=>renderCA(b.dataset.openCa));
 }
 function renderAddExam(subjectId){
