@@ -1,4 +1,5 @@
-const labels={home:"Home",classes:"My Classes",subjects:"Subjects",received:"Received",connect:"Connect",settings:"Settings"};
+const labels={home:"Home",classes:"My Classes",subjects:"Subjects",received:"Received",connect:"Connect","grade-band":"Grade Band",settings:"Settings"};
+const DEFAULT_GRADE_BANDS=[{grade:"A",min:70,max:100},{grade:"B",min:60,max:69.99},{grade:"C",min:50,max:59.99},{grade:"D",min:45,max:49.99},{grade:"E",min:40,max:44.99},{grade:"F",min:0,max:39.99}];
 const STORAGE="skulgo.teacher.workspace.v1";
 const nav=document.querySelectorAll(".nav-item"), page=document.querySelector("#page"), title=document.querySelector("#page-title");
 const menu=document.querySelector("#menu-button"), sidebar=document.querySelector("#sidebar");
@@ -6,9 +7,24 @@ const menu=document.querySelector("#menu-button"), sidebar=document.querySelecto
 function read(){try{return JSON.parse(localStorage.getItem(STORAGE)||"null")}catch{return null}}
 function write(data){localStorage.setItem(STORAGE,JSON.stringify(data))}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-function state(){return read()||{teacher:null,classes:[],subjects:[]}}
+function state(){const s=read()||{teacher:null,classes:[],subjects:[]};if(!Array.isArray(s.gradeBands)||!s.gradeBands.length)s.gradeBands=DEFAULT_GRADE_BANDS.map(x=>({...x}));return s}
 function id(p){return p+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,7)}
 
+function gradeFromPercentage(percent){
+ const s=state(),bands=Array.isArray(s.gradeBands)?s.gradeBands:DEFAULT_GRADE_BANDS;
+ const match=bands.find(b=>percent>=Number(b.min)&&percent<=Number(b.max));
+ return match?.grade||"—";
+}
+function hasExamEntry(subjectId,studentId){
+ const s=state();
+ return (Array.isArray(s.exams)?s.exams:[]).filter(a=>a.subjectId===subjectId).some(a=>(a.scores||[]).some(v=>v.studentId===studentId&&v.score!==undefined&&v.score!==null&&String(v.score).trim()!==""));
+}
+function renderGradeBand(){
+ const s=state();
+ page.innerHTML='<div class="section-heading"><div><h2>Grade Band</h2><p class="muted">Default grading bands for this Teacher workspace. Change the minimum and maximum percentage as needed.</p></div></div><form class="form-card" id="grade-band-form"><div class="grade-band-grid">'+s.gradeBands.map((b,i)=>'<div class="grade-band-row"><strong>'+esc(b.grade)+'</strong><input name="min-'+i+'" type="number" min="0" max="100" step="0.01" value="'+esc(b.min)+'" aria-label="Minimum percentage for '+esc(b.grade)+'"><span>to</span><input name="max-'+i+'" type="number" min="0" max="100" step="0.01" value="'+esc(b.max)+'" aria-label="Maximum percentage for '+esc(b.grade)+'"></div>').join("")+'</div><div class="form-actions"><button class="primary-button">Save Grade Band</button><button type="button" class="small-button" id="reset-grade-band">Reset Default</button></div><p class="form-message" id="grade-band-message"></p></form><div class="card"><h3>Special exam rule</h3><p>Before an exam is entered, the student has no grade. If an exam record is explicitly entered as <strong>0</strong>, the exam exists and grading is allowed. When an exam has maximum 0 and score 0, the displayed grade is <strong>S</strong>.</p></div>';
+ document.querySelector("#grade-band-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),bands=s.gradeBands.map((b,i)=>({...b,min:Number(d.get("min-"+i)),max:Number(d.get("max-"+i))}));if(bands.some(b=>!Number.isFinite(b.min)||!Number.isFinite(b.max)||b.min<0||b.max>100||b.min>b.max)){document.querySelector("#grade-band-message").textContent="Each band must be between 0 and 100, with minimum not above maximum.";return}const st=state();st.gradeBands=bands;write(st);document.querySelector("#grade-band-message").textContent="Grade band saved.";};
+ document.querySelector("#reset-grade-band").onclick=()=>{const st=state();st.gradeBands=DEFAULT_GRADE_BANDS.map(x=>({...x}));write(st);renderGradeBand()};
+}
 function renderHome(){
  const s=state();
  if(!s.teacher){page.innerHTML='<div class="section-heading"><div><h2>Welcome</h2><p class="muted">Create a local Teacher workspace. Normal school work stays offline.</p></div></div><div class="cards"><div class="card"><h3>Use as Teacher</h3><p>Name + 4-digit PIN. No internet required.</p><div class="card-action"><button class="primary-button" id="start-teacher">Create workspace</button></div></div><div class="card"><h3>Connect to School</h3><p>Pair with a school Admin workspace when connection is available.</p><div class="card-action"><button class="small-button" id="start-connect">Connect</button></div></div></div>';document.querySelector("#start-teacher").onclick=renderCreate;document.querySelector("#start-connect").onclick=()=>render("connect");return}
@@ -105,7 +121,7 @@ function renderSubject(subjectId){
    const examScore=studentExam(x.id,st.studentId);
    const total=caScore+examScore;
    const overallMax=caMax+examMax;
-   const grade=overallMax>0&&((ca.length||exams.length)&&((exams.length&&examMax>0)||caScore>0))?gradeFromPercentage((total/overallMax)*100):"—";
+   const examEntered=hasExamEntry(x.id,st.studentId); const specialZeroExam=examEntered&&examMax===0&&examScore===0; const grade=!examEntered?"—":specialZeroExam?"S":overallMax>0?gradeFromPercentage((total/overallMax)*100):"—";
    return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+' · '+esc(st.status||"ACTIVE")+'</div></div><div class="result-number"><span class="result-label">CA</span><strong>'+caScore+'</strong><small>/ '+caMax+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+examScore+'</strong><small>/ '+examMax+'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+total+'</strong><small>/ '+overallMax+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+grade+'</strong></div></div>';
  }).join(""):'<div class="empty">No students assigned to this subject.</div>')+'</div></div>'+
  '<div class="card"><h3>CA assessments</h3>'+
@@ -148,6 +164,7 @@ function render(section){
  else if(section==="subjects") renderSubjects();
  else if(section==="received") page.innerHTML='<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';
  else if(section==="connect") renderConnect();
+ else if(section==="grade-band") renderGradeBand();
  else if(section==="settings") page.innerHTML='<div class="card"><h2>Settings</h2><p class="muted">Teacher profile and local workspace settings.</p></div>';
  else renderHome();
  sidebar.classList.remove("open");
