@@ -43,8 +43,6 @@ jobs:
               .brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}
               .mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#111827;color:#fff;font-weight:800;font-size:22px}
               h1{margin:0;font-size:28px}
-              .eyebrow{margin:0 0 6px;color:#64748b;font-size:13px}
-              .intro{color:#64748b;line-height:1.6;margin:0 0 24px}
               .choice{width:100%;display:block;text-align:left;padding:20px;margin:12px 0;border:1px solid #e5e7eb;border-radius:16px;background:#fff;color:#111827;cursor:pointer}
               .choice:hover{border-color:#94a3b8;background:#f8fafc}
               .choice strong{display:block;font-size:18px;margin-bottom:5px}
@@ -58,12 +56,10 @@ jobs:
               <div class="brand">
                 <div class="mark">S</div>
                 <div>
-                  <p class="eyebrow">Offline school records</p>
                   <h1>SkulGo App</h1>
                 </div>
               </div>
               <section id="chooser">
-                <p class="intro">Choose how you use SkulGo. Your choice is saved on this device so you will go directly to your app next time.</p>
                 <button class="choice" data-role="admin">
                   <strong>Admin</strong>
                   <span>School administration and records</span>
