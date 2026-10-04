@@ -114,7 +114,7 @@ function renderSubject(subjectId){
  const exams=Array.isArray(s.exams)?s.exams.filter(v=>v.subjectId===x.id):[];
  const caMax=studentCAMax(x.id),examMax=studentExamMax(x.id);
  page.innerHTML='<div class="section-heading"><div><h2>'+esc(x.name)+'</h2><p class="muted">'+esc(x.className)+' · '+students.length+' students</p></div><button class="small-button" id="back-subjects">Back</button></div>'+
- '<div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button></div></div>'+
+ '<div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button> <button class="primary-button" id="add-exam">+ Add Exam</button></div></div>'+
  '<div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>'+
  (students.length?'<div class="student-results">'+students.map(st=>{
    const caScore=studentCA(x.id,st.studentId);
@@ -133,8 +133,24 @@ function renderSubject(subjectId){
  }).join(""):'<div class="empty">No CA assessment yet.</div>')+
  (exams.length?'<p class="muted" style="margin-top:14px">Exam records: '+exams.length+'</p>':"")+'</div>';
  document.querySelector("#back-subjects").onclick=renderSubjects;
- document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);
+ document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);\n const examButton=document.querySelector("#add-exam");\n examButton.textContent=exams.length?"Open Exam":"+ Add Exam";\n examButton.onclick=()=>exams.length?renderExam(exams[0].id):renderAddExam(subjectId);
  document.querySelectorAll("[data-open-ca]").forEach(b=>b.onclick=()=>renderCA(b.dataset.openCa));
+}
+function renderAddExam(subjectId){
+ const s=state(),x=s.subjects.find(v=>v.id===subjectId);if(!x)return renderSubjects();
+ const existing=(Array.isArray(s.exams)?s.exams:[]).find(v=>v.subjectId===x.id);
+ if(existing)return renderExam(existing.id);
+ page.innerHTML='<div class="section-heading"><div><h2>Add Exam</h2><p class="muted">'+esc(x.name)+' · '+esc(x.className)+'</p></div><button class="small-button" id="back-exam">Back</button></div><form class="form-card" id="exam-form"><div class="form-grid"><label>Exam name<input name="name" value="EXAM" required></label><label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="60" required></label><label>Date<input name="date" type="date" value="2026-10-04" required></label></div><div class="form-actions"><button class="primary-button">Create Exam &amp; Add Scores</button></div><p class="form-message" id="exam-message"></p></form>';
+ document.querySelector("#back-exam").onclick=()=>renderSubject(subjectId);
+ document.querySelector("#exam-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),maximumScore=Number(d.get("maximumScore"));if(!Number.isFinite(maximumScore)||maximumScore<=0){document.querySelector("#exam-message").textContent="Maximum score must be greater than zero.";return}const st=state();st.exams=Array.isArray(st.exams)?st.exams:[];if(st.exams.some(v=>v.subjectId===x.id)){return renderExam(st.exams.find(v=>v.subjectId===x.id).id)}const exam={id:id("exam"),subjectId:x.id,classId:x.classId,name:"EXAM",maximumScore,date:String(d.get("date")),scores:[]};st.exams.push(exam);write(st);renderExam(exam.id)};
+}
+function renderExam(examId){
+ const s=state(),a=(s.exams||[]).find(v=>v.id===examId);if(!a)return renderSubjects();
+ const x=s.subjects.find(v=>v.id===a.subjectId),c=s.classes.find(v=>v.id===a.classId),students=(c?.students||[]).filter(st=>x?.studentIds.includes(st.studentId));
+ const values=new Map((a.scores||[]).map(v=>[v.studentId,v.score]));
+ page.innerHTML='<div class="section-heading"><div><h2>EXAM</h2><p class="muted">'+esc(x?.name||"Subject")+' · '+esc(x?.className||"Class")+' · Max '+esc(a.maximumScore)+' · '+esc(a.date)+'</p></div><button class="small-button" id="back-exam">Back</button></div><div class="card"><h3>Exam</h3><p>This is the single exam record for this subject. Enter one score for each student.</p></div><form class="form-card" id="exam-scores"><h3>Enter exam scores</h3>'+(students.length?students.map(st=>'<div class="score-row"><div class="score-student"><strong>'+esc(st.name)+'</strong><span class="student-id">'+esc(st.studentId)+'</span></div><input class="score-input" name="score-'+esc(st.studentId)+'" type="number" min="0" max="'+esc(a.maximumScore)+'" step="0.01" value="'+esc(values.get(st.studentId)??"")+'" placeholder="0 - '+esc(a.maximumScore)+'" aria-label="Exam score for '+esc(st.name)+'"></div>').join(""):'<p class="empty">No students assigned to this subject.</p>')+'<div class="form-actions"><button class="primary-button">Save Exam Scores</button></div><p class="form-message" id="exam-score-message"></p></form>';
+ document.querySelector("#back-exam").onclick=()=>renderSubject(a.subjectId);
+ document.querySelector("#exam-scores").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),st=state();const scores=[];for(const student of students){const raw=d.get("score-"+student.studentId);if(raw===null||String(raw).trim()==="")continue;const score=Number(raw);if(!Number.isFinite(score)||score<0||score>a.maximumScore){document.querySelector("#exam-score-message").textContent="Each score must be between 0 and the exam maximum.";return}scores.push({studentId:student.studentId,score,updatedAt:new Date().toISOString()})}const saved=st.exams.find(v=>v.id===examId);if(!saved)return renderSubjects();saved.scores=scores;write(st);renderSubject(a.subjectId);};
 }
 function renderAddCA(subjectId){
  const s=state(),x=s.subjects.find(v=>v.id===subjectId);if(!x)return renderSubjects();
