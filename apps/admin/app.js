@@ -1632,6 +1632,15 @@ function renderReportCard() {
         </footer>
       </article>
     `;
+
+    document.querySelector("#save-report-remarks").addEventListener("click", () => {
+      saveStudentRemark(remarksKey, {
+        classTeacher: document.querySelector("#class-teacher-remark").value.trim(),
+        principal: document.querySelector("#principal-remark").value.trim(),
+        encouragement: document.querySelector("#encouragement-remark").value.trim()
+      });
+      document.querySelector("#save-report-remarks").insertAdjacentHTML("afterend", '<span class="notice-inline">Remarks saved.</span>');
+    });
   });
 }
 
