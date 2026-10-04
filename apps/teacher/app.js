@@ -52,11 +52,68 @@ function renderAddSubject(){
  select.onchange=draw;draw();
  document.querySelector("#subject-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),c=s.classes.find(x=>x.id===d.get("classId"));const ids=d.get("membership")==="ALL"?c.students.filter(x=>x.status==="ACTIVE").map(x=>x.studentId):d.getAll("student");s.subjects.push({id:id("subject"),name:String(d.get("name")).trim(),classId:c.id,className:c.name,studentIds:ids});write(s);renderSubjects()};
 }
+function gradeFromPercentage(percent){
+ if(percent>=70)return "A";
+ if(percent>=60)return "B";
+ if(percent>=50)return "C";
+ if(percent>=45)return "D";
+ if(percent>=40)return "E";
+ return "F";
+}
+function studentCA(subjectId,studentId){
+ const s=state();
+ return (Array.isArray(s.ca)?s.ca:[])
+  .filter(a=>a.subjectId===subjectId)
+  .reduce((sum,a)=>{
+   const row=(a.scores||[]).find(v=>v.studentId===studentId);
+   return sum+(row?Number(row.score)||0:0);
+  },0);
+}
+function studentCAMax(subjectId){
+ const s=state();
+ return (Array.isArray(s.ca)?s.ca:[])
+  .filter(a=>a.subjectId===subjectId)
+  .reduce((sum,a)=>sum+(Number(a.maximumScore)||0),0);
+}
+function studentExam(subjectId,studentId){
+ const s=state();
+ return (Array.isArray(s.exams)?s.exams:[])
+  .filter(a=>a.subjectId===subjectId)
+  .reduce((sum,a)=>{
+   const row=(a.scores||[]).find(v=>v.studentId===studentId);
+   return sum+(row?Number(row.score)||0:0);
+  },0);
+}
+function studentExamMax(subjectId){
+ const s=state();
+ return (Array.isArray(s.exams)?s.exams:[])
+  .filter(a=>a.subjectId===subjectId)
+  .reduce((sum,a)=>sum+(Number(a.maximumScore)||0),0);
+}
 function renderSubject(subjectId){
  const s=state(),x=s.subjects.find(v=>v.id===subjectId);if(!x)return renderSubjects();
- const c=s.classes.find(v=>v.id===x.classId);const students=(c?.students||[]).filter(st=>x.studentIds.includes(st.studentId));
+ const c=s.classes.find(v=>v.id===x.classId);
+ const students=(c?.students||[]).filter(st=>x.studentIds.includes(st.studentId));
  const ca=Array.isArray(s.ca)?s.ca.filter(v=>v.subjectId===x.id):[];
- page.innerHTML='<div class="section-heading"><div><h2>'+esc(x.name)+'</h2><p class="muted">'+esc(x.className)+' · '+students.length+' students</p></div><button class="small-button" id="back-subjects">Back</button></div><div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button></div></div><div class="card"><h3>CA assessments</h3>'+(ca.length?ca.map(a=>'<div class="student-row"><div><strong>'+esc(a.name)+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+a.scores.length+' scores</div></div><button class="small-button" data-open-ca="'+a.id+'">Open</button></div>').join(""):'<div class="empty">No CA assessment yet.</div>')+'</div><div class="card"><h3>Students</h3>'+(students.length?students.map(st=>'<div class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+'</div></div><span class="chip">'+esc(st.status||"ACTIVE")+'</span></div>').join(""):'<div class="empty">No students assigned to this subject.</div>')+'</div>';
+ const exams=Array.isArray(s.exams)?s.exams.filter(v=>v.subjectId===x.id):[];
+ const caMax=studentCAMax(x.id),examMax=studentExamMax(x.id);
+ page.innerHTML='<div class="section-heading"><div><h2>'+esc(x.name)+'</h2><p class="muted">'+esc(x.className)+' · '+students.length+' students</p></div><button class="small-button" id="back-subjects">Back</button></div>'+
+ '<div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button></div></div>'+
+ '<div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>'+
+ (students.length?'<div class="student-results">'+students.map(st=>{
+   const caScore=studentCA(x.id,st.studentId);
+   const examScore=studentExam(x.id,st.studentId);
+   const total=caScore+examScore;
+   const overallMax=caMax+examMax;
+   const grade=overallMax>0&&((ca.length||exams.length)&&((exams.length&&examMax>0)||caScore>0))?gradeFromPercentage((total/overallMax)*100):"—";
+   return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+' · '+esc(st.sex)+' · '+esc(st.status||"ACTIVE")+'</div></div><div class="result-number"><span class="result-label">CA</span><strong>'+caScore+'</strong><small>/ '+caMax+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+examScore+'</strong><small>/ '+examMax+'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+total+'</strong><small>/ '+overallMax+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+grade+'</strong></div></div>';
+ }).join(""):'<div class="empty">No students assigned to this subject.</div>')+'</div></div>'+
+ '<div class="card"><h3>CA assessments</h3>'+
+ (ca.length?ca.map(a=>{
+   const count=(a.scores||[]).length;
+   return '<div class="student-row"><div><strong>'+esc(a.name)+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+count+' scores</div></div><button class="small-button" data-open-ca="'+a.id+'">Open</button></div>';
+ }).join(""):'<div class="empty">No CA assessment yet.</div>')+
+ (exams.length?'<p class="muted" style="margin-top:14px">Exam records: '+exams.length+'</p>':"")+'</div>';
  document.querySelector("#back-subjects").onclick=renderSubjects;
  document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);
  document.querySelectorAll("[data-open-ca]").forEach(b=>b.onclick=()=>renderCA(b.dataset.openCa));
