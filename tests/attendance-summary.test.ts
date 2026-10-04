@@ -8,7 +8,8 @@ const assignment = {
   schoolId: "school-1",
   teacherUserId: "teacher-user-1",
   classId: "class-1",
-  subjectId: "subject-1",
+  assignmentType: "CLASS_MASTER",
+  status: "ACTIVE",
   createdAt: "2026-10-03T08:00:00.000Z",
 };
 
@@ -34,7 +35,7 @@ test("attendance summary returns total, M/F, present, and absent", () => {
   });
 });
 
-test("admin and assigned user can use the same duty overview", () => {
+test("admin and assigned Class Master can use the same duty overview", () => {
   const summary = { total: 3, male: 1, female: 2, present: 2, absent: 1 };
 
   const adminView = createAttendanceDutyOverview(
