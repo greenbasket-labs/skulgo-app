@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkulGo — Teacher</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div><strong>SkulGo</strong><span>Teacher</span></div>
+      </div>
+      <nav aria-label="Teacher navigation">
+        <button class="nav-item active" data-section="home">Home</button>
+        <button class="nav-item" data-section="classes">My Classes</button>
+        <button class="nav-item" data-section="subjects">Subjects</button>
+        <button class="nav-item" data-section="received">Received</button>
+        <button class="nav-item" data-section="connect">Connect</button>
+        <button class="nav-item" data-section="settings">Settings</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span>Offline ready</span></div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" aria-label="Open menu">☰</button>
+        <div><p class="eyebrow">Teacher workspace</p><h1 id="page-title">Home</h1></div>
+        <div class="connection"><span class="status-dot"></span><span>Offline</span></div>
+      </header>
+      <section id="page" class="panel" aria-live="polite"></section>
+    </main>
+  </div>
+  <script src="/app.js?v=20261004-teacher-v1"></script>
+</body>
+</html>
