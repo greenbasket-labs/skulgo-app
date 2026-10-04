@@ -87,6 +87,17 @@ export class IdentityRepository {
       )
     `);
     try {
+      await this.db.run(
+        `INSERT INTO local_teacher_assignments
+         (assignment_id, school_id, teacher_user_id, class_id, assignment_type, subject_id, status, created_at)
+         SELECT assignment_id, school_id, teacher_user_id, class_id, 'SUBJECT_TEACHER', subject_id, 'ACTIVE', created_at
+         FROM local_teacher_assignments_legacy`,
+      );
+      await this.db.run("DROP TABLE local_teacher_assignments_legacy");
+    } catch {
+      // No legacy assignment table exists, or migration was already completed.
+    }
+    try {
       await this.db.run("ALTER TABLE local_students ADD COLUMN gender TEXT");
     } catch {
       // Existing local databases may already contain the column.
