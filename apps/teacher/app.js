@@ -58,18 +58,29 @@ function renderAddStudent(classId){
  const s=state(),c=s.classes.find(x=>x.id===classId);if(!c||c.role!=="CLASS_MASTER")return renderClasses();
  page.innerHTML='<div class="section-heading"><div><h2>Add Student</h2><p class="muted">'+esc(c.name)+' · Enter the Student ID supplied by the school/Admin.</p></div><button class="small-button" id="back-add-student">Back</button></div><form class="form-card" id="student-form"><div class="form-grid"><label>Full name<input name="name" required></label><label>Student ID<input name="studentId" required placeholder="e.g. AC/SS/2026/1042"></label><label>Gender<select name="sex"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></label></div><div class="form-actions"><button class="primary-button" type="submit">Save Student</button></div><p class="form-message" id="student-message"></p></form>';
  document.querySelector("#back-add-student").onclick=()=>renderClass(classId);
- document.querySelector("#student-form").onsubmit=e=>{
+ document.querySelector("#student-form").addEventListener("submit",e=>{
   e.preventDefault();
   const d=new FormData(e.currentTarget),name=String(d.get("name")||"").trim(),studentId=String(d.get("studentId")||"").trim(),sex=String(d.get("sex")||"");
   const message=document.querySelector("#student-message");
   if(!name||!studentId){message.textContent="Full name and Student ID are required.";return}
-  if(c.students.some(st=>String(st.studentId).trim()===studentId)){message.textContent="That Student ID is already in this class.";return}
   const st=state();
-  c.students.push({studentId,name,sex,status:"ACTIVE"});
-  write(st);
-  renderClass(classId);
- };
+  const target=st.classes.find(x=>x.id===classId);
+  if(!target)return;
+  target.students=Array.isArray(target.students)?target.students:[];
+  if(target.students.some(student=>String(student.studentId||"").trim()===studentId)){message.textContent="That Student ID is already in this class.";return}
+  target.students.push({studentId,name,sex,status:"ACTIVE"});
+  try{
+   write(st);
+   const saved=state().classes.find(x=>x.id===classId);
+   const confirmed=saved?.students?.some(student=>String(student.studentId||"").trim()===studentId);
+   if(!confirmed){message.textContent="Student could not be saved on this device.";return}
+   renderClass(classId);
+  }catch(error){
+   message.textContent="Could not save student on this device.";
+  }
+ });
 }
+
 
 function renderAttendance(classId){
  const s=state(), c=s.classes.find(x=>x.id===classId);if(!c||c.role!=="CLASS_MASTER")return renderClasses();
