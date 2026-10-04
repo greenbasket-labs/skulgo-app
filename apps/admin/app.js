@@ -320,10 +320,10 @@ async function renderSchool() {
       <div class="school-details">
         <h3>School details</h3>
         <dl class="details-grid">
-          <div><dt>School sections</dt><dd>${escapeHtml((school.schoolSections || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : [])).join(", ") || "—")}</dd></div>
-          <div><dt>Phone</dt><dd>${escapeHtml(school.phone || "—")}</dd></div>
-          <div><dt>Email</dt><dd>${escapeHtml(school.email || "—")}</dd></div>
-          <div><dt>Address</dt><dd>${escapeHtml(school.address || "—")}</dd></div>
+          <div><dt>School sections</dt><dd>${escapeHtml((school.schoolSections || (school.schoolType === "Primary and Secondary" ? ["Primary", "Secondary"] : school.schoolType ? [school.schoolType] : [])).join(", ") || "â")}</dd></div>
+          <div><dt>Phone</dt><dd>${escapeHtml(school.phone || "â")}</dd></div>
+          <div><dt>Email</dt><dd>${escapeHtml(school.email || "â")}</dd></div>
+          <div><dt>Address</dt><dd>${escapeHtml(school.address || "â")}</dd></div>
         </dl>
       </div>` : ""}`;
 
@@ -364,6 +364,8 @@ async function renderSchool() {
             </select>
           </label>
         </div>
+        <p class="muted" id="assignment-duty-help">Class Master: responsible for attendance and class-level duties.</p>
+
         <div class="form-actions">
           <button class="primary-button" type="submit">Save school setup</button>
         </div>
@@ -381,7 +383,7 @@ async function renderSchool() {
     function renderSelectedSections() {
       sectionsValue.value = JSON.stringify(selectedSections);
       selectedSectionsEl.innerHTML = selectedSections.length
-        ? selectedSections.map((section) => `<span class="selected-section">${escapeHtml(section)} <button type="button" class="remove-section" data-remove-section="${escapeHtml(section)}" aria-label="Remove ${escapeHtml(section)}">×</button></span>`).join("")
+        ? selectedSections.map((section) => `<span class="selected-section">${escapeHtml(section)} <button type="button" class="remove-section" data-remove-section="${escapeHtml(section)}" aria-label="Remove ${escapeHtml(section)}">Ã</button></span>`).join("")
         : '<span class="field-help">No sections selected.</span>';
       selectedSectionsEl.querySelectorAll("[data-remove-section]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -574,7 +576,7 @@ function renderSubjects() {
     </div>`;
 
   document.querySelector("#subject-rows").innerHTML = subjects.length
-    ? subjects.map((subject) => `<tr><td>${escapeHtml(subject.name)}</td><td>${subject.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${subject.status === "ACTIVE" ? `<button class="small-button" data-disable-subject="${escapeHtml(subject.subjectId)}">Disable</button>` : "—"}</td></tr>`).join("")
+    ? subjects.map((subject) => `<tr><td>${escapeHtml(subject.name)}</td><td>${subject.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${subject.status === "ACTIVE" ? `<button class="small-button" data-disable-subject="${escapeHtml(subject.subjectId)}">Disable</button>` : "â"}</td></tr>`).join("")
     : '<tr><td colspan="3" class="empty">No subjects yet.</td></tr>';
 
   document.querySelector("#new-subject").addEventListener("click", () => {
@@ -635,7 +637,7 @@ function renderTeachers() {
       </table>
     </div>`;
   document.querySelector("#teacher-rows").innerHTML = teachers.length
-    ? teachers.map((teacher) => `<tr><td>${escapeHtml(teacher.teacherId)}</td><td>${escapeHtml(teacher.name)}</td><td>${teacher.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${teacher.status === "ACTIVE" ? `<button class="small-button" data-disable-teacher="${escapeHtml(teacher.teacherId)}">Disable</button>` : "—"}</td></tr>`).join("")
+    ? teachers.map((teacher) => `<tr><td>${escapeHtml(teacher.teacherId)}</td><td>${escapeHtml(teacher.name)}</td><td>${teacher.status === "ACTIVE" ? "Active" : "Disabled"}</td><td>${teacher.status === "ACTIVE" ? `<button class="small-button" data-disable-teacher="${escapeHtml(teacher.teacherId)}">Disable</button>` : "â"}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No teachers yet.</td></tr>';
   document.querySelector("#new-teacher").addEventListener("click", () => {
     document.querySelector("#teacher-form").innerHTML = `
@@ -749,11 +751,11 @@ function renderStudentsFromStore() {
   };
 
   document.querySelector("#student-rows").innerHTML = students.length
-    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "—")}</td><td>${escapeHtml(className(s.classId) || "—")}</td><td>${escapeHtml(s.gender || "—")}</td></tr>`).join("")
+    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "â")}</td><td>${escapeHtml(className(s.classId) || "â")}</td><td>${escapeHtml(s.gender || "â")}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No students yet.</td></tr>';
 
   document.querySelector("#admission-rows").innerHTML = pending.length
-    ? pending.map((a) => `<tr><td>${escapeHtml(a.applicantName)}</td><td>${escapeHtml(a.admissionNumber || "—")}</td><td>${escapeHtml(className(a.intendedClassId) || "—")}</td><td><button class="small-button" data-approve="${a.admissionId}">Approve</button></td></tr>`).join("")
+    ? pending.map((a) => `<tr><td>${escapeHtml(a.applicantName)}</td><td>${escapeHtml(a.admissionNumber || "â")}</td><td>${escapeHtml(className(a.intendedClassId) || "â")}</td><td><button class="small-button" data-approve="${a.admissionId}">Approve</button></td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No pending admissions.</td></tr>';
 
   document.querySelector("#new-admission").addEventListener("click", () => {
@@ -765,7 +767,7 @@ function renderStudentsFromStore() {
           <label>Class
             <select name="classId" required>
               <option value="">Select class</option>
-              ${loadClasses().filter((item) => item.schoolId === school.schoolId).map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)} — ${escapeHtml(item.sectionName)}</option>`).join("")}
+              ${loadClasses().filter((item) => item.schoolId === school.schoolId).map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)} â ${escapeHtml(item.sectionName)}</option>`).join("")}
             </select>
           </label>
           <label>Gender<select name="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
@@ -914,6 +916,7 @@ function renderAssignments() {
       <table>
         <thead>
           <tr>
+            <th>Type</th>
             <th>Teacher</th>
             <th>Class</th>
             <th>Subject</th>
@@ -931,25 +934,34 @@ function renderAssignments() {
   document.querySelector("#assignment-rows").innerHTML = rows.length
     ? rows.map((assignment) => `
         <tr>
+          <td>${escapeHtml(assignment.assignmentType === "CLASS_MASTER" ? "Class Master" : "Subject Teacher")}</td>
           <td>${escapeHtml(teacherName(assignment.teacherId))}</td>
           <td>${escapeHtml(className(assignment.classId))}</td>
-          <td>${escapeHtml(subjectName(assignment.subjectId))}</td>
+          <td>${escapeHtml(assignment.assignmentType === "CLASS_MASTER" ? "—" : subjectName(assignment.subjectId))}</td>
           <td>${assignment.status === "ACTIVE" ? "Active" : "Disabled"}</td>
           <td>
             ${
               assignment.status === "ACTIVE"
                 ? `<button class="small-button" data-disable-assignment="${escapeHtml(assignment.assignmentId)}">Disable</button>`
-                : "�"
+                : ""
             }
           </td>
         </tr>
       `).join("")
-    : '<tr><td colspan="5" class="empty">No teaching assignments yet.</td></tr>';
+    : '<tr><td colspan="6" class="empty">No teaching assignments yet.</td></tr>';
 
   document.querySelector("#new-assignment").addEventListener("click", () => {
     document.querySelector("#assignment-form").innerHTML = `
       <form class="form-card" id="assignment-create-form">
         <div class="form-grid">
+          <label>
+            Assignment type
+            <select name="assignmentType" id="assignment-type" required>
+              <option value="CLASS_MASTER">Class Master</option>
+              <option value="SUBJECT_TEACHER">Subject Teacher</option>
+            </select>
+          </label>
+
           <label>
             Teacher
             <select name="teacherId" required>
@@ -974,9 +986,9 @@ function renderAssignments() {
             </select>
           </label>
 
-          <label>
+          <label id="assignment-subject-field">
             Subject
-            <select name="subjectId" required>
+            <select name="subjectId" id="assignment-subject">
               <option value="">Select subject</option>
               ${subjects.map((subject) => `
                 <option value="${escapeHtml(subject.subjectId)}">
@@ -995,21 +1007,49 @@ function renderAssignments() {
       </form>
     `;
 
-    document.querySelector("#assignment-create-form").addEventListener("submit", (event) => {
+    const form = document.querySelector("#assignment-create-form");
+    const typeSelect = document.querySelector("#assignment-type");
+    const subjectField = document.querySelector("#assignment-subject-field");
+    const subjectSelect = document.querySelector("#assignment-subject");
+    const dutyHelp = document.querySelector("#assignment-duty-help");
+
+    const updateAssignmentType = () => {
+      const isClassMaster = typeSelect.value === "CLASS_MASTER";
+      subjectField.style.display = isClassMaster ? "none" : "";
+      subjectSelect.required = !isClassMaster;
+      if (isClassMaster) subjectSelect.value = "";
+      dutyHelp.textContent = isClassMaster
+        ? "Class Master: responsible for attendance and class-level duties."
+        : "Subject Teacher: responsible for CA, exams, and subject results.";
+    };
+
+    typeSelect.addEventListener("change", updateAssignmentType);
+    updateAssignmentType();
+
+    form.addEventListener("submit", (event) => {
       event.preventDefault();
 
-      const data = new FormData(event.currentTarget);
+      const data = new FormData(form);
+      const assignmentType = String(data.get("assignmentType") || "").trim();
       const teacherId = String(data.get("teacherId") || "").trim();
       const classId = String(data.get("classId") || "").trim();
       const subjectId = String(data.get("subjectId") || "").trim();
 
       const teacher = teachers.find((item) => item.teacherId === teacherId);
       const selectedClass = classes.find((item) => item.classId === classId);
-      const subject = subjects.find((item) => item.subjectId === subjectId);
+      const subject = assignmentType === "SUBJECT_TEACHER"
+        ? subjects.find((item) => item.subjectId === subjectId)
+        : null;
 
-      if (!teacher || !selectedClass || !subject) {
+      if (!teacher || !selectedClass) {
         document.querySelector("#assignment-message").textContent =
-          "Select a valid teacher, class and subject.";
+          "Select a valid teacher and class.";
+        return;
+      }
+
+      if (assignmentType === "SUBJECT_TEACHER" && !subject) {
+        document.querySelector("#assignment-message").textContent =
+          "Select a valid subject for the Subject Teacher assignment.";
         return;
       }
 
@@ -1018,15 +1058,17 @@ function renderAssignments() {
       const duplicate = next.find(
         (item) =>
           item.schoolId === school.schoolId &&
-          item.teacherId === teacherId &&
+          item.assignmentType === assignmentType &&
           item.classId === classId &&
-          item.subjectId === subjectId &&
+          (assignmentType === "CLASS_MASTER" || item.subjectId === subjectId) &&
           item.status === "ACTIVE"
       );
 
       if (duplicate) {
         document.querySelector("#assignment-message").textContent =
-          "This teacher is already assigned to this class and subject.";
+          assignmentType === "CLASS_MASTER"
+            ? "This class already has an active Class Master."
+            : "This class and subject already has an active Subject Teacher assignment.";
         return;
       }
 
@@ -1035,7 +1077,8 @@ function renderAssignments() {
         schoolId: school.schoolId,
         teacherId,
         classId,
-        subjectId,
+        assignmentType,
+        ...(assignmentType === "SUBJECT_TEACHER" ? { subjectId } : {}),
         status: "ACTIVE",
         createdAt: new Date().toISOString()
       });
@@ -1220,7 +1263,7 @@ function renderAttendanceList(school, classId, date) {
     if (notice) {
       notice.insertAdjacentHTML(
         "afterbegin",
-        `<div class="notice-card"><strong>Attendance saved successfully.</strong><p class="muted">${escapeHtml(selectedClass.name)} � ${escapeHtml(date)}</p></div>`
+        `<div class="notice-card"><strong>Attendance saved successfully.</strong><p class="muted">${escapeHtml(selectedClass.name)}  ${escapeHtml(date)}</p></div>`
       );
     }
   });
