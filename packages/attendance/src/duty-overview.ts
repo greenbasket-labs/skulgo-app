@@ -6,7 +6,6 @@ export interface AttendanceDutyOverview {
   assignmentId: string;
   assignedUserId: string;
   classId: string;
-  subjectId: string;
   period: AttendancePeriod;
   summary: AttendanceSummary;
 }
