@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { summarizeAttendance } from "../packages/attendance/src/summary";
 import { createAttendanceDutyOverview } from "../packages/attendance/src/duty-overview";
+import type { LocalTeacherAssignment } from "../packages/identity/src/repository";
 
-const assignment = {
+const assignment: LocalTeacherAssignment = {
   assignmentId: "assignment-1",
   schoolId: "school-1",
   teacherUserId: "teacher-user-1",
