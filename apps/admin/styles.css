@@ -177,3 +177,21 @@ tr:last-child td { border-bottom:0; }
   .report-card-attendance{grid-template-columns:1fr}
   .report-card-footer{flex-direction:column}
 }
+
+
+/* Report Card configurable remark bands */
+
+.report-card-remarks-settings{margin:0 0 18px;border:1px solid #dfe4ea;border-radius:10px;background:#fff;overflow:hidden}
+.report-card-remarks-settings summary{cursor:pointer;padding:13px 15px;font-size:13px;font-weight:800;list-style:none}
+.report-card-remarks-settings summary::-webkit-details-marker{display:none}
+.report-card-remarks-settings summary:after{content:"▾";float:right;color:#667085}
+.report-card-remarks-body{padding:0 15px 15px;border-top:1px solid #edf0f3}
+.report-card-remarks-body>p{font-size:12px;margin:12px 0}
+.report-card-remarks-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.report-card-remarks-grid label{font-size:11px;font-weight:700;color:#667085}
+.report-card-remarks-grid input{width:100%;margin-top:5px;box-sizing:border-box}
+.report-card-remark{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:15px 17px;margin:0 0 25px;border:1px solid #e5e7eb;border-radius:10px;background:#f7f8fa}
+.report-card-remark span{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#667085;font-weight:700}
+.report-card-remark strong{font-size:16px}
+@media(max-width:650px){.report-card-remarks-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:450px){.report-card-remarks-grid{grid-template-columns:1fr}}
