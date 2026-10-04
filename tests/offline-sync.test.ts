@@ -13,7 +13,7 @@ class FakeIdentityDb {
   private readonly rows = new Map<string, any[]>();
   async run(sql: string, params: unknown[] = []): Promise<void> {
     if (sql.includes("INSERT INTO local_teacher_assignments")) {
-      const row = { assignment_id: params[0], school_id: params[1], teacher_user_id: params[2], class_id: params[3], subject_id: params[4], created_at: params[5] };
+      const row = { assignment_id: params[0], school_id: params[1], teacher_user_id: params[2], class_id: params[3], assignment_type: params[4], subject_id: params[5], status: params[6], created_at: params[7] };
       this.rows.set("assignments", [...(this.rows.get("assignments") ?? []), row]);
     }
     if (sql.includes("INSERT OR REPLACE INTO local_students")) {
@@ -22,7 +22,7 @@ class FakeIdentityDb {
     }
   }
   async get<T>(_sql: string, params: unknown[] = []): Promise<T | undefined> {
-    const row = (this.rows.get("assignments") ?? []).find((r) => r.school_id === params[0] && r.teacher_user_id === params[1] && r.class_id === params[2] && r.subject_id === params[3]);
+    const row = (this.rows.get("assignments") ?? []).find((r) => r.school_id === params[0] && r.teacher_user_id === params[1] && r.class_id === params[2] && r.assignment_type === "CLASS_MASTER");
     return row as T | undefined;
   }
   async all<T>(_sql: string, params: unknown[] = []): Promise<T[]> {
@@ -48,7 +48,7 @@ test("teacher records attendance offline, then syncs to admin", async () => {
   const identityDb = new FakeIdentityDb();
   const identityRepository = new IdentityRepository(identityDb);
   await identityRepository.initialize();
-  await identityRepository.saveTeacherAssignment({ assignmentId:"a1", schoolId:"school-1", teacherUserId:"teacher-1", classId:"ss1", subjectId:"math", createdAt:"2026-10-01T08:00:00.000Z" });
+  await identityRepository.saveTeacherAssignment({ assignmentId:"a1", schoolId:"school-1", teacherUserId:"teacher-1", classId:"ss1", assignmentType:"CLASS_MASTER", status:"ACTIVE", createdAt:"2026-10-01T08:00:00.000Z" });
   await identityRepository.saveStudent({ studentId:"student-1", schoolId:"school-1", classId:"ss1", displayName:"Aisha", createdAt:"2026-10-01T08:00:00.000Z" });
   const record = await recordAttendance(teacher, attendanceRepository, identityRepository, { schoolId:"school-1", teacherUserId:"teacher-1", deviceId:"teacher-phone", classId:"ss1", subjectId:"math", studentId:"student-1", sessionId:"2026-2027", termId:"first", date:"2026-10-01", status:"present" });
   assert.equal((await localStore.get(record.recordId))?.recordId,record.recordId);
@@ -71,7 +71,7 @@ test("teacher cannot record attendance outside their assignment", async () => {
   const attendanceRepository = new AttendanceRepository(new TestRecordStore());
   const identityRepository = new IdentityRepository(new FakeIdentityDb());
   await assert.rejects(
-    recordAttendance(teacher,attendanceRepository,identityRepository,{ schoolId:"school-1",teacherUserId:"teacher-1",deviceId:"teacher-phone",classId:"ss1",subjectId:"math",studentId:"student-1",sessionId:"2026-2027",termId:"first",date:"2026-10-01",status:"present" }),
+    recordAttendance(teacher,attendanceRepository,identityRepository,{ schoolId:"school-1",teacherUserId:"teacher-1",deviceId:"teacher-phone",classId:"ss1",studentId:"student-1",sessionId:"2026-2027",termId:"first",date:"2026-10-01",status:"present" }),
     /not assigned to this class/,
   );
 });
