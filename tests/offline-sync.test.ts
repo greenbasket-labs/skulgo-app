@@ -72,6 +72,6 @@ test("teacher cannot record attendance outside their assignment", async () => {
   const identityRepository = new IdentityRepository(new FakeIdentityDb());
   await assert.rejects(
     recordAttendance(teacher,attendanceRepository,identityRepository,{ schoolId:"school-1",teacherUserId:"teacher-1",deviceId:"teacher-phone",classId:"ss1",studentId:"student-1",sessionId:"2026-2027",termId:"first",date:"2026-10-01",status:"present" }),
-    /not assigned to this class/,
+    /not assigned as Class Master for this class/,
   );
 });
