@@ -25,91 +25,19 @@ function getReportCardRevenueSettings(school) {
 }
 
 function renderReportCardRevenue() {
-  const school = loadSchool();
-
-  if (!school?.schoolId) {
-    page.innerHTML = '<h2>Report Card Revenue</h2><p class="muted">Complete School Setup before configuring paid report-card publishing.</p>';
-    return;
-  }
-
-  const settings = getReportCardRevenueSettings(school);
-
   page.innerHTML = `
     <div class="section-heading">
       <div>
         <h2>Report Card Revenue</h2>
-        <p class="muted">Optional paid publishing for schools that want to charge students for official report cards.</p>
+        <p class="muted">Paid report-card publishing is an upcoming feature.</p>
       </div>
-      <span class="revenue-status ${settings.enabled ? "enabled" : "disabled"}">${settings.enabled ? "Enabled" : "Disabled"}</span>
     </div>
-
-    <form class="form-card revenue-settings-card" id="report-card-revenue-form">
-      <label class="revenue-toggle">
-        <input type="checkbox" name="enabled" ${settings.enabled ? "checked" : ""}>
-        <span>
-          <strong>Enable paid Report Card publishing</strong>
-          <small>When enabled, the configured fee applies to each student's official report card.</small>
-        </span>
-      </label>
-
-      <div class="form-grid">
-        <label>Fee per student
-          <input name="feeAmount" type="number" min="0" step="1" value="${escapeHtml(settings.feeAmount)}" placeholder="e.g. 1000">
-        </label>
-        <label>Currency
-          <input value="NGN" readonly>
-        </label>
-      </div>
-
-      <div class="revenue-split">
-        <div>
-          <span>School share</span>
-          <strong>50%</strong>
-        </div>
-        <div>
-          <span>SkulGo share</span>
-          <strong>50%</strong>
-        </div>
-      </div>
-
-      <div class="revenue-example">
-        <strong>Example</strong>
-        <p>For a ₦1,000 report-card fee: ₦500 goes to the school and ₦500 goes to SkulGo, before any payment-provider processing charges.</p>
-      </div>
-
-      <div class="revenue-note">
-        <strong>Payment integration</strong>
-        <p>This offline setting does not collect or verify money. A future secure payment service will confirm the student's payment and settle the 50/50 split. Do not treat a local browser setting as proof of payment.</p>
-      </div>
-
-      <div class="form-actions">
-        <button class="primary-button" type="submit">Save Revenue Settings</button>
-      </div>
-      <p class="form-message" id="revenue-save-message" role="status" aria-live="polite"></p>
-    </form>
+    <div class="card">
+      <h3>Coming soon</h3>
+      <p>We are speaking with schools first to understand how report-card printing and publishing should work before introducing any payment or revenue settings.</p>
+      <p class="muted">No payment is collected, configured or required in this version.</p>
+    </div>
   `;
-
-  document.querySelector("#report-card-revenue-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const all = loadReportCardRevenue();
-    const feeAmount = Math.max(0, Math.round(Number(data.get("feeAmount") || 0)));
-
-    all[school.schoolId] = {
-      enabled: data.get("enabled") === "on",
-      feeAmount,
-      currency: "NGN",
-      schoolSharePercent: 50,
-      skulgoSharePercent: 50,
-      updatedAt: new Date().toISOString()
-    };
-
-    saveReportCardRevenue(all);
-
-    const message = document.querySelector("#revenue-save-message");
-    message.textContent = "Report Card Revenue settings saved.";
-    renderReportCardRevenue();
-  });
 }
 
 (function registerReportCardRevenueModule() {
