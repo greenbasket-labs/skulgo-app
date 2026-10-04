@@ -304,7 +304,7 @@ async function renderSchool() {
     <div class="section-heading">
       <div>
         <h2>School setup</h2>
-        <p class="muted">Manage the school's identity and current academic period.</p>
+        <p class="muted"></p>
       </div>
       <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>
     </div>
