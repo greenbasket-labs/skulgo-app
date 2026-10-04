@@ -1359,6 +1359,162 @@ function renderResults() {
 }
 
 
+function renderReportCard() {
+  const school = loadSchool();
+  if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
+    page.innerHTML = '<h2>Report Card</h2><p class="muted">Complete School Setup before viewing report cards.</p>';
+    return;
+  }
+
+  const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
+  const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
+  const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId && item.status === "ACTIVE");
+  const records = loadResultsRecords().filter((item) =>
+    item.schoolId === school.schoolId &&
+    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
+    String(item.termId || "") === String(school.term?.termId || school.term?.name || "")
+  );
+  const attendance = loadAttendance().filter((item) =>
+    item.schoolId === school.schoolId &&
+    String(item.termId || "") === String(school.term?.termId || school.term?.name || "") &&
+    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "")
+  );
+  const gradeScale = loadGradeScale();
+
+  const studentStats = new Map();
+  for (const student of students) {
+    const studentRecords = records.filter((record) => record.studentId === student.studentId);
+    const validTotals = studentRecords
+      .map((record) => calculateResultTotal(record))
+      .filter((total) => Number.isFinite(total));
+    const average = validTotals.length
+      ? validTotals.reduce((sum, total) => sum + total, 0) / validTotals.length
+      : 0;
+    studentStats.set(student.studentId, {
+      student,
+      subjectCount: validTotals.length,
+      average
+    });
+  }
+
+  const ranked = [...studentStats.values()]
+    .filter((item) => item.subjectCount > 0)
+    .sort((a, b) => b.average - a.average || String(a.student.name).localeCompare(String(b.student.name)));
+
+  const classRanks = new Map();
+  for (const classItem of classes) {
+    let position = 0;
+    let previousAverage = null;
+    let counted = 0;
+    ranked
+      .filter((item) => item.student.classId === classItem.classId)
+      .forEach((item) => {
+        counted += 1;
+        if (previousAverage === null || item.average !== previousAverage) position = counted;
+        classRanks.set(item.student.studentId, { position, total: ranked.filter((candidate) => candidate.student.classId === classItem.classId).length });
+        previousAverage = item.average;
+      });
+  }
+
+  const schoolRanks = new Map();
+  let schoolPosition = 0;
+  let previousSchoolAverage = null;
+  let schoolCounted = 0;
+  ranked.forEach((item) => {
+    schoolCounted += 1;
+    if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = schoolCounted;
+    schoolRanks.set(item.student.studentId, { position: schoolPosition, total: ranked.length });
+    previousSchoolAverage = item.average;
+  });
+
+  const ordinal = (value) => {
+    const n = Number(value);
+    if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
+    return n % 10 === 1 ? n + "st" : n % 10 === 2 ? n + "nd" : n % 10 === 3 ? n + "rd" : n + "th";
+  };
+
+  page.innerHTML = `
+    <div class="section-heading">
+      <div><h2>Report Card</h2><p class="muted">Assemble the student's report from existing results, attendance and school information.</p></div>
+    </div>
+    <form class="form-card" id="report-card-selector">
+      <div class="form-grid">
+        <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
+      </div>
+      <div class="form-actions"><button class="primary-button" type="submit">Load Report Card</button></div>
+    </form>
+    <div id="report-card-output"></div>
+  `;
+
+  const classSelect = document.querySelector("#report-card-selector [name=classId]");
+  const studentSelect = document.querySelector("#report-card-selector [name=studentId]");
+
+  classSelect.addEventListener("change", () => {
+    const classStudents = students.filter((student) => student.classId === classSelect.value);
+    studentSelect.innerHTML = '<option value="">Select student</option>' +
+      classStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)}</option>`).join("");
+  });
+
+  document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const student = students.find((item) => item.studentId === String(data.get("studentId") || ""));
+    const classItem = classes.find((item) => item.classId === String(data.get("classId") || ""));
+    if (!student || !classItem) return;
+
+    const studentRecords = records.filter((record) => record.studentId === student.studentId && record.classId === classItem.classId);
+    const subjectsById = new Map(subjects.map((subject) => [subject.subjectId, subject]));
+    const resultRows = studentRecords.map((record) => {
+      const total = calculateResultTotal(record);
+      return {
+        subject: subjectsById.get(record.subjectId)?.name || record.subjectName || "Subject",
+        exam: record.exam ?? "N/A",
+        total: total ?? "N/A",
+        grade: calculateResultGrade(total, gradeScale) || "N/A"
+      };
+    });
+
+    const studentAttendance = attendance.filter((record) => record.studentId === student.studentId && record.classId === classItem.classId);
+    const present = studentAttendance.filter((record) => String(record.status).toLowerCase() === "present").length;
+    const absent = studentAttendance.filter((record) => String(record.status).toLowerCase() === "absent").length;
+    const attendanceTotal = present + absent;
+    const attendanceRate = attendanceTotal ? Math.round((present / attendanceTotal) * 100) : 0;
+    const stats = studentStats.get(student.studentId) || { average: 0, subjectCount: 0 };
+    const classRank = classRanks.get(student.studentId);
+    const schoolRank = schoolRanks.get(student.studentId);
+
+    document.querySelector("#report-card-output").innerHTML = `
+      <div class="card report-card">
+        <div class="section-heading">
+          <div><h3>${escapeHtml(school.name)}</h3><p class="muted">${escapeHtml(school.address || "")} ${escapeHtml(school.phone || "")} ${escapeHtml(school.email || "")}</p></div>
+        </div>
+        <div class="info-grid">
+          <div class="info-card"><span>Student</span><strong>${escapeHtml(student.name)}</strong></div>
+          <div class="info-card"><span>Student ID</span><strong>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</strong></div>
+          <div class="info-card"><span>Class</span><strong>${escapeHtml(classItem.name)}</strong></div>
+          <div class="info-card"><span>Session / Term</span><strong>${escapeHtml(school.session.name)} / ${escapeHtml(school.term.name)}</strong></div>
+          <div class="info-card"><span>Average</span><strong>${stats.subjectCount ? stats.average.toFixed(2) : "N/A"}</strong></div>
+          <div class="info-card"><span>Subjects Offered</span><strong>${stats.subjectCount}</strong></div>
+          <div class="info-card"><span>Class Rank</span><strong>${classRank ? ordinal(classRank.position) + " / " + classRank.total : "N/A"}</strong></div>
+          <div class="info-card"><span>School Overall Rank</span><strong>${schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "N/A"}</strong></div>
+        </div>
+        <h3>Academic Results</h3>
+        <div class="table-wrap"><table><thead><tr><th>Subject</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody>${resultRows.length ? resultRows.map((row) => `<tr><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.exam)}</td><td>${escapeHtml(row.total)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("") : '<tr><td colspan="4" class="empty">No result records for this student.</td></tr>'}</tbody></table></div>
+        <h3>Attendance</h3>
+        <div class="info-grid">
+          <div class="info-card"><span>Present</span><strong>${present}</strong></div>
+          <div class="info-card"><span>Absent</span><strong>${absent}</strong></div>
+          <div class="info-card"><span>Attendance Rate</span><strong>${attendanceRate}%</strong></div>
+          <div class="info-card"><span>Attendance Records</span><strong>${attendanceTotal}</strong></div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+
 function render(section) {
   const [heading] = labels[section] || [section, section];
   title.textContent = heading;
@@ -1379,6 +1535,8 @@ function render(section) {
     renderAttendance();
   } else if (section === "results") {
     renderResults();
+  } else if (section === "report-card") {
+    renderReportCard();
   } else {
     page.innerHTML = `<h2>${heading}</h2><p class="muted">This module is not wired into the Admin shell yet.</p>`;
   }
