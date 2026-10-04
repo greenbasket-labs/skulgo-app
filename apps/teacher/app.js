@@ -58,28 +58,51 @@ function renderAttendance(classId){
  const s=state(), c=s.classes.find(x=>x.id===classId);if(!c||c.role!=="CLASS_MASTER")return renderClasses();
  const today=new Date().toISOString().slice(0,10);
  const records=Array.isArray(s.attendance)?s.attendance:[];
- page.innerHTML='<div class="section-heading"><div><h2>Attendance</h2><p class="muted">'+esc(c.name)+' · Tick students present</p></div><button class="small-button" id="back-attendance">Back</button></div><form class="form-card" id="attendance-form"><div class="form-grid"><label>Date<input name="date" type="date" value="'+today+'" required></label></div><div class="card"><h3>Students</h3>'+(c.students.length?c.students.map(st=>'<label class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+'</div></div><input type="checkbox" name="present" value="'+esc(st.studentId)+'" class="attendance-check" aria-label="Present '+esc(st.name)+'"></label>').join(""):'<div class="empty">No students in this class yet.</div>')+'</div><div class="form-actions"><button class="primary-button">Save Attendance</button></div><p class="form-message" id="attendance-message"></p></form>';
- const form=document.querySelector("#attendance-form"), dateInput=form.querySelector("[name=date]");
+ page.innerHTML='<div class="section-heading"><div><h2>Attendance</h2><p class="muted">'+esc(c.name)+' · Tick students present</p></div><button class="small-button" id="back-attendance">Back</button></div>'+
+ '<form class="form-card" id="attendance-form"><div class="form-grid"><label>Date<input name="date" type="date" value="'+today+'" required></label><label>Term<select name="term"><option>First Term</option><option>Second Term</option><option>Third Term</option></select></label></div>'+
+ '<div class="card"><h3>Students</h3>'+(c.students.length?c.students.map(st=>'<label class="student-row"><div><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId)+'</div></div><input class="attendance-check" type="checkbox" name="present" value="'+esc(st.studentId)+'" aria-label="Present '+esc(st.name)+'"></label>').join(""):'<div class="empty">No students in this class yet.</div>')+
+ '</div><div class="form-actions"><button class="primary-button">Save Attendance</button></div><p class="form-message" id="attendance-message"></p></form>'+
+ '<div class="card"><h3>Attendance totals</h3><div class="form-grid"><label>Period<select id="attendance-period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="termly">Termly</option><option value="yearly">Yearly</option></select></label><div></div></div><div id="attendance-summary"></div></div>';
+ const form=document.querySelector("#attendance-form"),dateInput=form.querySelector("[name=date]"),termInput=form.querySelector("[name=term]"),periodInput=document.querySelector("#attendance-period");
+ function periodDates(date,period){
+  const d=new Date(date+"T00:00:00"),start=new Date(d),end=new Date(d);
+  if(period==="daily")return [date,date];
+  if(period==="weekly"){const day=d.getDay();start.setDate(d.getDate()-(day===0?6:day-1));end.setTime(start.getTime());end.setDate(start.getDate()+6);}
+  if(period==="monthly"){start.setDate(1);end.setMonth(d.getMonth()+1,0);}
+  if(period==="yearly"){start.setMonth(0,1);end.setMonth(11,31);}
+  if(period==="termly"){start.setMonth(0,1);end.setMonth(11,31);}
+  return [start.toISOString().slice(0,10),end.toISOString().slice(0,10)];
+ }
+ function renderSummary(){
+  const date=dateInput.value,period=periodInput.value,[from,to]=periodDates(date,period),term=termInput.value;
+  const rows=records.filter(r=>r.classId===classId&&r.date>=from&&r.date<=to&&(period!=="termly"||(!r.term||r.term===term)));
+  const unique=new Map();
+  rows.forEach(r=>unique.set(r.date+"|"+r.studentId,r));
+  const vals=[...unique.values()],present=vals.filter(r=>r.status==="PRESENT").length,absent=vals.filter(r=>r.status==="ABSENT").length;
+  const maleIds=new Set(c.students.filter(st=>st.sex==="Male").map(st=>st.studentId)),femaleIds=new Set(c.students.filter(st=>st.sex==="Female").map(st=>st.studentId));
+  const m=new Set(vals.filter(r=>maleIds.has(r.studentId)).map(r=>r.studentId)).size;
+  const f=new Set(vals.filter(r=>femaleIds.has(r.studentId)).map(r=>r.studentId)).size;
+  const rate=vals.length?Math.round((present/vals.length)*100):0;
+  document.querySelector("#attendance-summary").innerHTML='<div class="attendance-summary-grid"><div><span>Total</span><strong>'+vals.length+'</strong></div><div><span>M</span><strong>'+m+'</strong></div><div><span>F</span><strong>'+f+'</strong></div><div><span>Present</span><strong>'+present+'</strong></div><div><span>Absent</span><strong>'+absent+'</strong></div><div><span>Rate</span><strong>'+rate+'%</strong></div></div><p class="muted">Records: '+esc(from)+' to '+esc(to)+'</p>';
+ }
  function loadDate(){
   const saved=records.filter(r=>r.classId===classId&&r.date===dateInput.value);
   const present=new Set(saved.filter(r=>r.status==="PRESENT").map(r=>r.studentId));
+  if(saved.length&&saved[0].term)termInput.value=saved[0].term;
   form.querySelectorAll("[name=present]").forEach(box=>box.checked=present.has(box.value));
   document.querySelector("#attendance-message").textContent=saved.length?"Saved attendance: ticked = PRESENT, unticked = ABSENT.":"";
+  renderSummary();
  }
- dateInput.onchange=loadDate;loadDate();
+ dateInput.onchange=loadDate;termInput.onchange=()=>{loadDate()};periodInput.onchange=renderSummary;loadDate();
  document.querySelector("#back-attendance").onclick=()=>renderClass(classId);
  form.onsubmit=e=>{
   e.preventDefault();
-  const st=state(),date=String(dateInput.value),picked=new Set([...form.querySelectorAll("[name=present]:checked")].map(x=>x.value));
+  const st=state(),date=String(dateInput.value),term=String(termInput.value),picked=new Set([...form.querySelectorAll("[name=present]:checked")].map(x=>x.value));
   st.attendance=Array.isArray(st.attendance)?st.attendance:[];
   st.attendance=st.attendance.filter(r=>!(r.classId===classId&&r.date===date));
-  c.students.forEach(student=>st.attendance.push({id:id("attendance"),classId,studentId:student.studentId,date,status:picked.has(student.studentId)?"PRESENT":"ABSENT",updatedAt:new Date().toISOString()}));
+  c.students.forEach(student=>st.attendance.push({id:id("attendance"),classId,studentId:student.studentId,date,term,status:picked.has(student.studentId)?"PRESENT":"ABSENT",updatedAt:new Date().toISOString()}));
   write(st);renderAttendance(classId);
  };
-}
-function renderAddStudent(classId){
- page.innerHTML='<div class="section-heading"><div><h2>Add Student</h2><p class="muted">Student ID is generated locally for this class.</p></div></div><form class="form-card" id="student-form"><div class="form-grid"><label>Student name<input name="name" required></label><label>Sex<select name="sex"><option>Female</option><option>Male</option></select></label></div><div class="form-actions"><button class="primary-button">Add Student</button></div></form>';
- document.querySelector("#student-form").onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),s=state(),c=s.classes.find(x=>x.id===classId);const n=c.students.length+1;c.students.push({studentId:c.name+"/"+new Date().getFullYear()+"/"+String(n).padStart(4,"0"),name:String(d.get("name")).trim(),sex:String(d.get("sex")),status:"ACTIVE"});write(s);renderClass(classId)};
 }
 function renderSubjects(){
  const s=state();if(!s.teacher)return renderHome();
