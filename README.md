@@ -122,3 +122,9 @@ For the local Admin workflow, the repository may also use a small Node-backed lo
 ## Scope boundary
 
 Do not modify the existing online SkulGo repository as part of this project. SkulGo Offline is developed independently so its offline-first architecture and contracts can evolve without coupling to the online application.
+
+## Optional Report Card Revenue
+
+Report Card Revenue is an optional school-level module. A school may enable a fee for official report-card publishing and configure the amount in NGN. The intended commercial split is **50% school / 50% SkulGo**, before payment-provider processing charges.
+
+The current offline implementation stores only the school's configuration. It does **not** treat browser/local data as proof of payment and does not collect or settle real money. Secure payment collection, verification, webhooks, and 50/50 settlement will be implemented as a separate payment integration.
