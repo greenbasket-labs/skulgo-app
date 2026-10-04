@@ -8,7 +8,7 @@ SkulGo Offline is being built module-by-module with a strict workflow:
 
 **propose one module → review/approve → implement → test/source-check → freeze → next module**
 
-The current Admin workspace contains working v1 screens for School, Students, Classes, Subjects, Teachers, Attendance, Results, and Report Card review. Finance and messaging remain part of the planned Admin surface.
+The active v1 product surface is intentionally limited to two apps: Admin and Teacher. The Admin workspace contains working v1 screens for School, Students, Classes, Subjects, Teachers, Teaching Assignments, Attendance, Results, and Report Card review. Finance and messaging remain part of the planned Admin surface.
 
 ## Core model
 
@@ -16,8 +16,8 @@ SkulGo is a network of school-owned devices.
 
 - Primary Admin node: authoritative school records.
 - Trusted Admin nodes: additional phones, laptops, tablets, or other approved devices that replicate official records.
-- Staff nodes: restricted working replicas for teachers, cashiers, and other roles.
-- Parent/Student nodes: restricted views of explicitly permitted records.
+- Teacher nodes: restricted working replicas for assigned teaching duties.
+- Cashier, Parent, and Student apps are intentionally hidden/inactive in v1 and will be introduced later when real school demand justifies them.
 
 The app installed on a device makes that device a node. The school does not need a permanent cloud database.
 
@@ -73,7 +73,9 @@ Optional backups can later be scheduled weekly, monthly, or per term and stored 
 
 ## Repository structure
 
-- apps/ — role-specific applications
+- apps/admin/ — school authority application
+- apps/teacher/ — teacher working application
+- apps/cashier/, apps/parent/, apps/student/ — reserved/inactive until later demand
 - packages/identity/ — identity and device model
 - packages/school-records/ — common record contracts
 - packages/attendance/ — attendance
