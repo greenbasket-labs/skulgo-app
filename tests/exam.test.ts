@@ -10,7 +10,7 @@ import type { SchoolContract } from "../packages/school/src/contract";
 
 const assignment: TeachingAssignment = {
   assignmentId: "assign-1", schoolId: "school-1", teacherId: "teacher-1",
-  classId: "class-1", subjectId: "subject-1", status: "ACTIVE",
+  classId: "class-1", assignmentType: "SUBJECT_TEACHER", subjectId: "subject-1", status: "ACTIVE",
   createdAt: "2026-10-03T08:00:00.000Z",
 };
 const student: Student = {
