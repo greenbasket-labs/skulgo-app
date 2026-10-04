@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This phase freezes the approved v1 product surface and proves the existing offline-first core before phone packaging.
+This phase freezes the approved v1 product surface and proves the offline-first Admin + Teacher application before broader packaging or feature expansion.
 
 ## v1 product boundary
 
@@ -13,7 +13,9 @@ Active apps:
 
 Core workflow:
 
-**School → Students/Classes/Subjects → Teacher Assignment → Attendance/CA/Exam → Results → Report Card → Publish → Print/Share**
+**School → Students/Classes/Subjects → Teacher Assignment → Attendance/CA/Exam → Results → Totals → Grade → Aggregate → Rank → Report Card → Publish → Print/Share**
+
+The core workflow must operate without an online database.
 
 Intentionally inactive for v1:
 
@@ -26,30 +28,31 @@ Intentionally inactive for v1:
 
 ### Automated
 
-- [ ] npm install succeeds from a clean checkout
-- [ ] npm run typecheck passes
-- [ ] npm test passes
-- [ ] GitHub Actions CI is green on main
+- [x] Typecheck
+- [x] Test suite — 108 tests passing at last verified baseline
+- [ ] Clean checkout install verification
+- [ ] Final CI run is green on the stabilization commit
 
-### Admin
+### Admin phone acceptance
 
-- [ ] Fresh school setup works
-- [ ] Student data persists after restart
-- [ ] Class/subject/teacher/assignment workflow works
-- [ ] Class Master attendance works
-- [ ] Results review works
-- [ ] Report Card consumes official records
-- [ ] Average uses subjects actually offered
-- [ ] Class rank and school rank are correct
-- [ ] Attendance summary is correct
-- [ ] Remarks can use defaults and custom values
-- [ ] Publish makes the report official
-- [ ] Published reports can be printed/shared
-- [ ] Batch print includes only published reports
-- [ ] Paid Report Card setting remains configuration-only until secure payment integration exists
+- [ ] Single SkulGo App launcher opens
+- [ ] Admin role selection opens Admin
+- [ ] Admin role is remembered after reopening
+- [ ] School setup works
+- [ ] Student admission works
+- [ ] Classes/subjects/teachers/assignments work
+- [ ] Attendance works
+- [ ] Results work
+- [ ] Report Card works
+- [ ] Publish/print/share works
+- [ ] Required data survives refresh/restart
+- [ ] Core app works without internet
 
-### Teacher
+### Teacher phone acceptance
 
+- [ ] Single SkulGo App launcher opens
+- [ ] Teacher role selection opens Teacher
+- [ ] Teacher role is remembered after reopening
 - [ ] Teacher identity/local workspace works
 - [ ] Assigned classes and subjects are enforced
 - [ ] Class Master attendance works
@@ -59,13 +62,58 @@ Intentionally inactive for v1:
 - [ ] Unauthorized class/subject access is rejected
 - [ ] Offline records remain available after refresh/restart
 
-### Sync
+## Data movement — next approved module
 
-- [ ] Teacher changes remain queued while offline
-- [ ] Authorized changes reach Admin when connected
-- [ ] Duplicate delivery is idempotent
-- [ ] Stale/conflicting versions do not overwrite official data
-- [ ] Acknowledgement clears the sender queue only after successful delivery
+Once phone acceptance is stable, implement secure file-based transfer rather than making live sync a v1 dependency.
+
+### Admin backup
+
+- [ ] Export complete school backup
+- [ ] Validate package before restore
+- [ ] Import backup on a new Admin device
+- [ ] Preserve school identity and records
+- [ ] Reject wrong/corrupt/incompatible packages
+
+### Admin → Teacher
+
+- [ ] Export assigned class package
+- [ ] Validate school, teacher, class, student and subject authority
+- [ ] Import on Teacher device
+- [ ] Support later student update packages
+
+### Teacher → Admin
+
+- [ ] Export teacher submission
+- [ ] Admin imports and validates
+- [ ] Reject wrong school/class/subject/session/term
+- [ ] Preserve duplicate/stale protections
+- [ ] Apply only authorized records
+
+## Frozen transfer identity envelope
+
+Validate every transfer using:
+
+**School ID + Teacher ID + Student ID + Student Name + Class ID + Subject ID + Session + Term + Record Type + Record Data**
+
+Student ID is the strongest student identity key. Name is a supporting check.
+
+## Report Card acceptance
+
+- [ ] Report Card consumes official attendance/results records
+- [ ] CA is not shown as a separate report-card component
+- [ ] Average uses subjects actually offered
+- [ ] Class rank uses normalized average
+- [ ] School rank uses normalized average
+- [ ] Attendance rate is correct
+- [ ] Remarks work
+- [ ] Publish status is enforced
+- [ ] Print/share output is correct
+
+## Sync boundary
+
+Live device-to-device synchronization is **not a release gate for core v1**.
+
+The sync/pairing packages may remain as foundations. Any future transport must be an adapter around the offline record model, not a requirement for local operation.
 
 ## Manual school acceptance
 
@@ -84,9 +132,12 @@ Use a small realistic school dataset and complete one full term:
 11. Publish.
 12. Print one report, print the class, and share one report.
 13. Restart the local apps and confirm required data remains available.
+14. Repeat the critical flow on a phone with no internet.
 
-## Phone packaging comes after this gate
+## Freeze rule
 
-Do not introduce phone packaging, payment providers, parent/student apps, or major new UI while these gates are open.
+After the above gates pass:
 
-The phone release should wrap the stabilized application rather than create a second implementation of school records.
+**Freeze v1.**
+
+Only confirmed defects blocking the approved workflow may be fixed before the freeze. New feature requests move to the later roadmap.
