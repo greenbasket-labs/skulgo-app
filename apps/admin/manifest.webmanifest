@@ -1,0 +1,10 @@
+{
+  "name": "SkulGo Offline Admin",
+  "short_name": "SkulGo Admin",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111827",
+  "description": "Offline-first school authority workspace."
+}
