@@ -1398,6 +1398,18 @@ function renderResults() {
       ${records.length && !gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
     `;
 
+    document.querySelector("#publish-report-card").addEventListener("click", () => {
+      if (isReportPublished(remarksKey)) return;
+      saveStudentRemark(remarksKey,{classTeacher:document.querySelector("#class-teacher-remark").value.trim(),principal:document.querySelector("#principal-remark").value.trim(),encouragement:document.querySelector("#encouragement-remark").value.trim()});
+      savePublishedReport(remarksKey);
+      const button=document.querySelector("#publish-report-card");button.textContent="Published Officially";button.disabled=true;
+    });
+    document.querySelector("#share-report-card").addEventListener("click", async () => {
+      const textToShare=school.name+" — Report Card — "+student.name+" — "+school.term.name;
+      if(navigator.share) await navigator.share({title:"Official Report Card",text:textToShare});
+      else if(navigator.clipboard){await navigator.clipboard.writeText(textToShare);alert("Report Card details copied.");}
+    });
+    document.querySelector("#print-report-card").addEventListener("click",()=>{const paper=document.querySelector("#report-card-output .report-card-paper");printReportCards(paper?.outerHTML||"","Report Card");});
     document.querySelector("#save-report-remarks").addEventListener("click", () => {
       saveStudentRemark(remarksKey, {
         classTeacher: document.querySelector("#class-teacher-remark").value.trim(),
@@ -1410,6 +1422,12 @@ function renderResults() {
 }
 
 
+const REPORT_PUBLISH_STORAGE_KEY = "skulgo.admin.report-card-published.v1";
+function loadPublishedReports(){try{const p=JSON.parse(readStorage(REPORT_PUBLISH_STORAGE_KEY)||"{}");return p&&typeof p==="object"?p:{};}catch{return {};}}
+function reportPublishKey(school,student){return [school.schoolId,school.session?.name,school.term?.name,student.studentId].join("|");}
+function savePublishedReport(key){const p=loadPublishedReports();p[key]={publishedAt:new Date().toISOString()};writeStorage(REPORT_PUBLISH_STORAGE_KEY,JSON.stringify(p));}
+function isReportPublished(key){return Boolean(loadPublishedReports()[key]);}
+function printReportCards(html,titleText){const w=window.open("","_blank","width=1000,height=800");if(!w)return;w.document.write("<!doctype html><html><head><title>"+escapeHtml(titleText)+"</title><style>body{font-family:Arial,sans-serif;margin:0}.report-card-paper{break-after:page;max-width:900px;margin:20px auto;padding:28px;border:1px solid #ddd}.report-card-paper:last-child{break-after:auto}</style></head><body>"+html+"</body></html>");w.document.close();w.focus();setTimeout(()=>w.print(),300);}
 function renderReportCard() {
   const school = loadSchool();
   if (!school?.schoolId || !school?.session?.name || !school?.term?.name) {
@@ -1564,7 +1582,13 @@ function renderReportCard() {
 
     const remarksKey = [school.schoolId, school.session?.name, school.term?.name, student.studentId].join("|");
     const savedStudentRemarks = loadStudentRemarks()[remarksKey] || {};
+    const published = isReportPublished(remarksKey);
     document.querySelector("#report-card-output").innerHTML = `
+      <div class="report-card-actions">
+        <button type="button" class="primary-button" id="publish-report-card">${published ? "Published Officially" : "Publish Report Card"}</button>
+        <button type="button" class="small-button" id="share-report-card">Share</button>
+        <button type="button" class="small-button" id="print-report-card">Print</button>
+      </div>
       <article class="report-card-paper">
         <header class="report-card-header">
           <div>
