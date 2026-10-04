@@ -131,13 +131,14 @@ function renderSubject(subjectId){
    const count=(a.scores||[]).length;
    return '<div class="student-row"><div><strong>'+esc(a.name)+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+count+' scores</div></div><button class="small-button" data-open-ca="'+a.id+'">Open</button></div>';
  }).join(""):'<div class="empty">No CA assessment yet.</div>')+
- (exams.length?'<p class="muted" style="margin-top:14px">Exam records: '+exams.length+'</p>':"")+'</div>';
+ (exams.length?exams.map(a=>{const count=(a.scores||[]).length;return '<div class="student-row"><div><strong>'+esc(a.name||"EXAM")+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+count+' scores</div></div><button class="small-button" data-open-exam="'+a.id+'">Open</button></div>';}).join(""):'<div class="empty">No Exam yet.</div>')+'</div>';
  document.querySelector("#back-subjects").onclick=renderSubjects;
  document.querySelector("#add-ca").onclick=()=>renderAddCA(subjectId);
  const examButton=document.querySelector("#add-exam");
  examButton.textContent=exams.length?"Open Exam":"+ Add Exam";
  examButton.onclick=()=>exams.length?renderExam(exams[0].id):renderAddExam(subjectId);
  document.querySelectorAll("[data-open-ca]").forEach(b=>b.onclick=()=>renderCA(b.dataset.openCa));
+ document.querySelectorAll("[data-open-exam]").forEach(b=>b.onclick=()=>renderExam(b.dataset.openExam));
 }
 function renderAddExam(subjectId){
  const s=state(),x=s.subjects.find(v=>v.id===subjectId);if(!x)return renderSubjects();
