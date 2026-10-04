@@ -26,7 +26,7 @@ Intentionally inactive for v1:
 
 ### Automated
 
-- [ ] npm ci succeeds from a clean checkout
+- [ ] npm install succeeds from a clean checkout
 - [ ] npm run typecheck passes
 - [ ] npm test passes
 - [ ] GitHub Actions CI is green on main
