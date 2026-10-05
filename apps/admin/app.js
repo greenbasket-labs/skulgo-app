@@ -1541,9 +1541,33 @@ function renderReportCard() {
   document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const student = students.find((item) => item.studentId === String(data.get("studentId") || ""));
-    const classItem = classes.find((item) => item.classId === String(data.get("classId") || ""));
-    if (!student || !classItem) return;
+    const reportType = String(data.get("reportType") || "");
+    const targetId = String(data.get("targetId") || "");
+
+    let selectedStudents = [];
+    if (reportType === "student") {
+      const student = students.find((item) => String(item.studentId) === targetId);
+      if (student) selectedStudents = [student];
+    } else if (reportType === "class") {
+      selectedStudents = students.filter((item) => String(item.classId) === targetId);
+    } else if (reportType === "section") {
+      const classIds = new Set(classes.filter((item) => String(item.sectionId || item.sectionName) === targetId).map((item) => item.classId));
+      selectedStudents = students.filter((item) => classIds.has(item.classId));
+    } else if (reportType === "school") {
+      selectedStudents = students.slice();
+    }
+
+    if (!selectedStudents.length) {
+      document.querySelector("#report-card-output").innerHTML = '<p class="muted">No students found for this selection.</p>';
+      return;
+    }
+
+    const student = selectedStudents[0];
+    const classItem = classes.find((item) => item.classId === student.classId);
+    if (!classItem) {
+      document.querySelector("#report-card-output").innerHTML = '<p class="muted">The selected student has no class record.</p>';
+      return;
+    }
 
     const studentRecords = records.filter((record) => record.studentId === student.studentId && record.classId === classItem.classId);
     const subjectsById = new Map(subjects.map((subject) => [subject.subjectId, subject]));
