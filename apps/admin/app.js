@@ -1452,30 +1452,6 @@ function renderReportCard() {
     return n % 10 === 1 ? n + "st" : n % 10 === 2 ? n + "nd" : n % 10 === 3 ? n + "rd" : n + "th";
   };
 
-  const remarkBands = loadRemarkBands();
-
-  page.innerHTML = `
-    <div class="report-card-selector-wrap">
-      <div class="section-heading">
-        <div><h2>Report Card</h2><p class="muted">Generate the student's term report from existing school records.</p></div>
-      </div>
-
-      <details class="report-card-remarks-settings">
-        <summary>Remark Bands</summary>
-        <div class="report-card-remarks-body">
-          <p class="muted">Set the remark that should appear for each performance grade. Changes are saved on this device.</p>
-          <form id="remark-bands-form">
-            <div class="report-card-remarks-grid">${remarkBands.bands.map((band, index) => `<label>Level ${escapeHtml(band.label)} — ${escapeHtml(band.title || '')}
-                  <input type="number" min="0" max="100" step="0.01" name="minimum-${index}" value="${escapeHtml(band.minimumAverage ?? '')}" placeholder="Minimum average">
-                </label>
-                <label>Default remark
-                  <input name="remark-${index}" value="${escapeHtml(band.remark || '')}" placeholder="Custom remark">
-                </label>`).join('')}</div>
-            <div class="form-actions"><button class="primary-button" type="submit">Save Remark Bands</button></div>
-          </form>
-        </div>
-      </details>
-
       <form class="form-card" id="report-card-selector">
         <div class="form-grid">
           <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
@@ -2068,11 +2044,37 @@ function renderSettings() {
         <button class="primary-button" id="settings-edit-school" type="button">Edit School Setup</button>
       </div>
       <div class="card">
+        <h3>Remark Bands</h3>
+        <p>Set the remark that should appear for each performance grade. Changes are saved on this device.</p>
+        <form id="remark-bands-form">
+          <div class="report-card-remarks-grid">${loadRemarkBands().bands.map((band, index) => `<label>Level ${escapeHtml(band.label)} — ${escapeHtml(band.title || '')}
+                <input type="number" min="0" max="100" step="0.01" name="minimum-${index}" value="${escapeHtml(band.minimumAverage ?? '')}" placeholder="Minimum average">
+              </label>
+              <label>Default remark
+                <input name="remark-${index}" value="${escapeHtml(band.remark || '')}" placeholder="Custom remark">
+              </label>`).join('')}</div>
+          <div class="form-actions"><button class="primary-button" type="submit">Save Remark Bands</button></div>
+        </form>
+      </div>
+      <div class="card">
         <h3>Start Fresh</h3>
         <p>Remove SkulGo school data stored on this device and clear local safety snapshots. The application itself will not be deleted.</p>
         <button class="secondary-button" id="settings-reset-app" type="button">Start Fresh</button>
       </div>
     </div>`;
+
+  document.querySelector("#remark-bands-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const current = loadRemarkBands().bands;
+    const next = current.map((band, index) => ({
+      ...band,
+      minimumAverage: Number(data.get(`minimum-${index}`)),
+      remark: String(data.get(`remark-${index}`) || "").trim()
+    })).sort((a,b) => Number(b.minimumAverage) - Number(a.minimumAverage));
+    saveRemarkBands(next);
+    event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>Remark bands saved successfully.</strong></div>');
+  });
 
   document.querySelector("#settings-edit-school").addEventListener("click", async () => {
     nav.forEach((item) => item.classList.remove("active"));
