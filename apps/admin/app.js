@@ -1538,6 +1538,8 @@ function renderReportCard() {
     printBatchReports(students, "All Classes");
   });
 
+  let renderingBatch = false;
+
   document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -1559,6 +1561,33 @@ function renderReportCard() {
 
     if (!selectedStudents.length) {
       document.querySelector("#report-card-output").innerHTML = '<p class="muted">No students found for this selection.</p>';
+      return;
+    }
+
+    if (selectedStudents.length > 1 && !renderingBatch) {
+      const form = event.currentTarget;
+      const originalType = reportTypeSelect.value;
+      const originalTarget = targetSelect.value;
+      const reports = [];
+      renderingBatch = true;
+      try {
+        selectedStudents.forEach((item) => {
+          reportTypeSelect.value = "student";
+          targetSelect.innerHTML = '<option value="">Select student</option>';
+          targetSelect.value = item.studentId;
+          form.requestSubmit();
+          const rendered = document.querySelector("#report-card-output").innerHTML;
+          reports.push(rendered.replace(/<div class="report-card-actions">[\s\S]*?<\/div>/, ""));
+        });
+      } finally {
+        renderingBatch = false;
+        reportTypeSelect.value = originalType;
+        targetSelect.innerHTML = '<option value="">Select</option>';
+        targetSelect.value = originalTarget;
+      }
+      document.querySelector("#report-card-output").innerHTML =
+        '<div class="report-card-batch-heading"><h3>' + escapeHtml(selectedStudents.length + " Report Cards") + '</h3></div>' +
+        reports.join('<div class="report-card-page-break"></div>');
       return;
     }
 
