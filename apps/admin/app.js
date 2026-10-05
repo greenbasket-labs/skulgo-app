@@ -270,13 +270,15 @@ async function renderSchool() {
   await hydrateSchoolStore();
   const school = loadSchool();
 
+  const resetButton = '<button class="secondary-button" id="reset-app" type="button">Start Fresh</button>';
+
   page.innerHTML = `
     <div class="section-heading">
       <div>
         <h2>School setup</h2>
         <p class="muted"></p>
       </div>
-      <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>
+      <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>${resetButton}
     </div>
 
     <div id="school-form"></div>
@@ -299,6 +301,30 @@ async function renderSchool() {
       </div>` : ""}`;
 
   document.querySelector("#edit-school").addEventListener("click", () => {
+  document.querySelector("#reset-app").addEventListener("click", async () => {
+    const confirmed = window.confirm("Start fresh? This will remove SkulGo school data stored on this device and clear the app's local safety snapshots. The application itself will not be deleted.");
+    if (!confirmed) return;
+    try {
+      const keepKeys = new Set(["skulgo.app.role.v1"]);
+      Object.keys(localStorage).forEach((key) => { if (!keepKeys.has(key)) localStorage.removeItem(key); });
+      Object.keys(sessionStorage).forEach((key) => sessionStorage.removeItem(key));
+      studentStoreCache = null;
+      classStoreCache = null;
+      subjectStoreCache = null;
+      teacherStoreCache = null;
+      assignmentStoreCache = null;
+      try { indexedDB.deleteDatabase("skulgo-safe-data"); } catch {}
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((key) => key.startsWith("skulgo-")).map((key) => caches.delete(key)));
+      }
+      window.location.href = "../";
+    } catch (error) {
+      window.alert("Could not complete the reset. Please try again.");
+      console.warn("SkulGo fresh-start reset failed", error);
+    }
+  });
+
     const current = loadSchool();
     document.querySelector("#school-form").innerHTML = `
       <form class="form-card" id="school-setup-form">
