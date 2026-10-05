@@ -1309,11 +1309,6 @@ function renderResults() {
   const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
   const sessionId = school.session?.sessionId || school.session?.name || "";
   const termId = school.term?.termId || school.term?.name || "";
-  const records = loadResultsRecords().filter((item) =>
-    item.schoolId === school.schoolId &&
-    String(item.sessionId || "") === String(sessionId) &&
-    String(item.termId || "") === String(termId)
-  );
 
   page.innerHTML = `
     <div class="section-heading">
@@ -1337,43 +1332,61 @@ function renderResults() {
     const subjectId = String(data.get("subjectId") || "");
     const selectedClass = classes.find((item) => item.classId === classId);
     const selectedSubject = subjects.find((item) => item.subjectId === subjectId);
-    const gradeScale = loadGradeScale();
-
     if (!selectedClass || !selectedSubject) {
       document.querySelector("#results-list").innerHTML = '<p class="empty">Select a class and subject.</p>';
       return;
     }
 
     const classStudents = students.filter((student) => student.classId === classId);
+    const gradeScale = loadGradeScale();
+    const allRecords = loadResultsRecords();
+    const keyMatches = (record) => record.schoolId === school.schoolId && record.classId === classId && record.subjectId === subjectId &&
+      String(record.sessionId || "") === String(sessionId) && String(record.termId || "") === String(termId);
+    const records = allRecords.filter(keyMatches);
+
     const renderEntry = (kind) => {
-      const entry = document.querySelector("#admin-result-entry");
       const label = kind === "ca" ? "CA" : "Exam";
       const defaultMax = kind === "ca" ? 20 : 60;
-      entry.innerHTML = `
+      page.innerHTML = `
+        <div class="section-heading">
+          <div><h2>Add ${label}</h2><p class="muted">${escapeHtml(selectedSubject.name)} · ${escapeHtml(selectedClass.name)}</p></div>
+          <button class="small-button" type="button" id="back-results">Back</button>
+        </div>
         <form class="form-card" id="admin-result-entry-form">
           <div class="form-grid">
             <label>${label} name<input name="name" value="${label === "CA" ? "CA 1" : "EXAM"}" required></label>
             <label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="${defaultMax}" required></label>
             <label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label>
           </div>
-          <div class="card"><h3>Student scores</h3>${classStudents.map((student) => `
-            <div class="score-row"><div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
-            <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}"></div>`).join("")}</div>
-          <div class="form-actions"><button class="primary-button">Save ${label} Scores</button><button type="button" class="small-button" id="cancel-admin-result-entry">Cancel</button></div>
+          <div class="card">
+            <h3>Student Scores</h3>
+            <p class="muted">Enter one score for each student offering this subject.</p>
+            ${classStudents.length ? classStudents.map((student) => `
+              <div class="score-row">
+                <div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
+                <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}">
+              </div>`).join("") : '<div class="empty">No students are enrolled in this class.</div>'}
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save ${label} Scores</button>
+            <button class="small-button" type="button" id="cancel-admin-result-entry">Cancel</button>
+          </div>
           <p class="form-message" id="admin-result-entry-message"></p>
         </form>`;
 
-      document.querySelector("#cancel-admin-result-entry").onclick = () => { entry.innerHTML = ""; };
+      document.querySelector("#back-results").onclick = () => renderResults();
+      document.querySelector("#cancel-admin-result-entry").onclick = () => renderResults();
       document.querySelector("#admin-result-entry-form").onsubmit = (e) => {
         e.preventDefault();
         const d = new FormData(e.currentTarget);
         const maximumScore = Number(d.get("maximumScore"));
         const message = document.querySelector("#admin-result-entry-message");
-        if (!Number.isFinite(maximumScore) || maximumScore <= 0) { message.textContent = "Maximum score must be greater than zero."; return; }
+        if (!Number.isFinite(maximumScore) || maximumScore <= 0) {
+          message.textContent = "Maximum score must be greater than zero.";
+          return;
+        }
 
         const all = loadResultsRecords();
-        const keyMatches = (record) => record.schoolId === school.schoolId && record.classId === classId && record.subjectId === subjectId &&
-          String(record.sessionId || "") === String(sessionId) && String(record.termId || "") === String(termId);
         const existing = new Map(all.filter(keyMatches).map((record) => [record.studentId, record]));
         for (const student of classStudents) {
           const raw = d.get("score-" + student.studentId);
@@ -1391,6 +1404,7 @@ function renderResults() {
           record[kind + "Date"] = String(d.get("date") || "");
           existing.set(student.studentId, record);
         }
+
         const untouched = all.filter((record) => !keyMatches(record));
         writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...untouched, ...existing.values()]));
         renderResults();
@@ -1400,21 +1414,23 @@ function renderResults() {
     document.querySelector("#results-list").innerHTML = `
       <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} — ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} — ${escapeHtml(school.term.name)}</p></div></div>
       <div class="card">
-        <h3>Subject Results Entry</h3>
+        <h3>Subject Results</h3>
         <p class="muted">Admin can enter CA and Exam scores directly, or import scores submitted by the Teacher.</p>
-        <div class="form-actions"><button type="button" class="primary-button" id="admin-add-ca">Add CA</button><button type="button" class="primary-button" id="admin-add-exam">Add Exam</button></div>
-        <div id="admin-result-entry"></div>
+        <div class="form-actions">
+          <button type="button" class="primary-button" id="admin-add-ca">+ Add CA</button>
+          <button type="button" class="primary-button" id="admin-add-exam">+ Add Exam</button>
+        </div>
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>Student</th><th>Admission ID</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
         <tbody>${classStudents.length ? classStudents.map((student) => {
-          const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subjectId);
+          const record = records.find((item) => item.studentId === student.studentId);
           const total = record ? calculateResultTotal(record) : undefined;
           const grade = calculateResultGrade(total, gradeScale);
           return `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`;
         }).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
       </table></div>
-      ${classStudents.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
+      ${classStudents.length && !records.length ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
       ${!gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
     `;
 
