@@ -76,49 +76,19 @@ function loadSchool() {
 }
 
 function saveSchool(school) {
-  const serialized = JSON.stringify(school);
-  writeStorage(SCHOOL_STORAGE_KEY, serialized);
-
-  return fetch(SCHOOL_API_PATH, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: serialized,
-    cache: "no-store"
-  }).then(async (response) => {
-    if (!response.ok) {
-      throw new Error("Local school store rejected the save.");
-    }
-    const saved = await response.json();
-    writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
-    return saved;
-  }).catch((error) => {
-    console.warn("Local school store save failed; browser storage remains available.", error);
-    return school;
-  });
+  // School records belong to this device/browser and must not depend on a server.
+  writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(school));
+  return Promise.resolve(school);
 }
 
 async function hydrateSchoolStore() {
-  try {
-    const response = await fetch(SCHOOL_API_PATH, { cache: "no-store" });
-    if (!response.ok) return false;
-
-    const saved = await response.json();
-    if (saved && typeof saved === "object" && saved.schoolId && saved.name) {
-      writeStorage(SCHOOL_STORAGE_KEY, JSON.stringify(saved));
-      return true;
-    }
-
-    const local = loadSchool();
-    if (local && typeof local === "object" && local.schoolId && local.name) {
-      await saveSchool(local);
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.warn("Local school store unavailable; using browser storage.", error);
-    return false;
+  // SkulGo App is local-first. GitHub Pages has no required school API,
+  // so the Admin screen must render immediately from device storage.
+  const local = loadSchool();
+  if (local && typeof local === "object" && local.schoolId && local.name) {
+    return true;
   }
+  return false;
 }
 
 function loadStore() {
