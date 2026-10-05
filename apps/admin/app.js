@@ -1462,8 +1462,8 @@ function renderReportCard() {
 
       <form class="form-card" id="report-card-selector">
         <div class="form-grid">
-          <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
-          <label>Student<select name="studentId" required><option value="">Select student</option></select></label>
+          <label>Report Type<select name="reportType" required><option value="">Select report type</option><option value="student">Student</option><option value="class">Class</option><option value="section">Section</option><option value="school">Whole School</option></select></label>
+          <label id="report-target-label">Selection<select name="targetId" required><option value="">Select</option></select></label>
         </div>
         <div class="form-actions">
           <button class="primary-button" type="submit">Load Report Card</button>
@@ -1475,13 +1475,32 @@ function renderReportCard() {
     <div id="report-card-output"></div>
   `;
 
-  const classSelect = document.querySelector("#report-card-selector [name=classId]");
-  const studentSelect = document.querySelector("#report-card-selector [name=studentId]");
+  const reportTypeSelect = document.querySelector("#report-card-selector [name=reportType]");
+  const targetLabel = document.querySelector("#report-target-label");
+  const targetSelect = document.querySelector("#report-card-selector [name=targetId]");
+  const sections = [...new Map(classes.map((item) => [item.sectionId || item.sectionName, { sectionId: item.sectionId || item.sectionName, name: item.sectionName || item.sectionId }])).values()];
 
-  classSelect.addEventListener("change", () => {
-    const classStudents = students.filter((student) => student.classId === classSelect.value);
-    studentSelect.innerHTML = '<option value="">Select student</option>' +
-      classStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)}</option>`).join("");
+  reportTypeSelect.addEventListener("change", () => {
+    const type = reportTypeSelect.value;
+    targetSelect.required = type !== "school";
+    targetSelect.innerHTML = "";
+    if (type === "student") {
+      targetLabel.firstChild.textContent = "Student";
+      targetSelect.innerHTML = '<option value="">Select student</option>' + students.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)}</option>`).join("");
+    } else if (type === "class") {
+      targetLabel.firstChild.textContent = "Class";
+      targetSelect.innerHTML = '<option value="">Select class</option>' + classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("");
+    } else if (type === "section") {
+      targetLabel.firstChild.textContent = "Section";
+      targetSelect.innerHTML = '<option value="">Select section</option>' + sections.map((item) => `<option value="${escapeHtml(item.sectionId)}">${escapeHtml(item.name)}</option>`).join("");
+    } else if (type === "school") {
+      targetLabel.firstChild.textContent = "Selection";
+      targetSelect.innerHTML = '<option value="school">Whole School</option>';
+      targetSelect.value = "school";
+    } else {
+      targetLabel.firstChild.textContent = "Selection";
+      targetSelect.innerHTML = '<option value="">Select</option>';
+    }
   });
 
   const printBatchReports = (studentList, label) => {
