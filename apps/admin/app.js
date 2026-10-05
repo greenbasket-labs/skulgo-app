@@ -1713,7 +1713,8 @@ function escapePdfText(value) {
   return String(value ?? "")
     .replace(/\\/g, "\\\\")
     .replace(/\\(/g, "\\(")
-    .replace(/\\)/g, "\\)");
+    .replace(/\\)/g, "\\)")
+    .replace(/[^\\x20-\\x7E]/g, "?");
 }
 
 function createBackupPdf(school, classItem, students, subjects, assignments, attendance, results, backupPayload) {
@@ -2041,6 +2042,8 @@ function renderTransfer() {
         school: { schoolId: school.schoolId, name: school.name, session: school.session, term: school.term },
         class: { classId: classItem.classId, name: classItem.name, sectionId: classItem.sectionId || null },
         students: classStudents.map(s => ({
+          ...s,
+          schoolId: school.schoolId,
           studentId: s.studentId,
           name: s.name,
           gender: s.gender || s.sex || "",
