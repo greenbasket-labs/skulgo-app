@@ -1564,6 +1564,22 @@ function renderReportCard() {
       return;
     }
 
+    // Batch reports are shown in rank order when results exist.
+    if (reportType !== "student") {
+      selectedStudents.sort((a, b) => {
+        const ar = classRanks.get(a.studentId);
+        const br = classRanks.get(b.studentId);
+        const as = schoolRanks.get(a.studentId);
+        const bs = schoolRanks.get(b.studentId);
+        const ra = reportType === "class" ? ar : (reportType === "section" || reportType === "school" ? as : null);
+        const rb = reportType === "class" ? br : (reportType === "section" || reportType === "school" ? bs : null);
+        if (ra && rb) return ra.position - rb.position || String(a.name).localeCompare(String(b.name));
+        if (ra) return -1;
+        if (rb) return 1;
+        return String(a.name).localeCompare(String(b.name));
+      });
+    }
+
     if (selectedStudents.length > 1 && !renderingBatch) {
       const form = event.currentTarget;
       const originalType = reportTypeSelect.value;
@@ -1573,7 +1589,7 @@ function renderReportCard() {
       try {
         selectedStudents.forEach((item) => {
           reportTypeSelect.value = "student";
-          targetSelect.innerHTML = '<option value="">Select student</option>';
+          targetSelect.innerHTML = '<option value="' + escapeHtml(item.studentId) + '">' + escapeHtml(item.name) + '</option>';
           targetSelect.value = item.studentId;
           form.requestSubmit();
           const rendered = document.querySelector("#report-card-output").innerHTML;
