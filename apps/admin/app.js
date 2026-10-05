@@ -8,6 +8,7 @@ const labels = {
   attendance: ["Attendance", "Attendance"],
   results: ["Results", "Results"],
   "report-card": ["Report Card", "Report Card"],
+  settings: ["Settings", "Settings"],
   fees: ["Fees", "Fees"],
   cashier: ["Cashier", "Cashier"],
   messaging: ["Messaging", "Messaging"],
@@ -270,15 +271,13 @@ async function renderSchool() {
   await hydrateSchoolStore();
   const school = loadSchool();
 
-  const resetButton = '<button class="secondary-button" id="reset-app" type="button">Start Fresh</button>';
-
   page.innerHTML = `
     <div class="section-heading">
       <div>
         <h2>School setup</h2>
         <p class="muted"></p>
       </div>
-      <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>${resetButton}
+      <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>
     </div>
 
     <div id="school-form"></div>
@@ -299,30 +298,6 @@ async function renderSchool() {
           <div><dt>Address</dt><dd>${escapeHtml(school.address || "â")}</dd></div>
         </dl>
       </div>` : ""}`;
-
-  document.querySelector("#reset-app").addEventListener("click", async () => {
-    const confirmed = window.confirm("Start fresh? This will remove SkulGo school data stored on this device and clear the app's local safety snapshots. The application itself will not be deleted.");
-    if (!confirmed) return;
-    try {
-      const keepKeys = new Set(["skulgo.app.role.v1"]);
-      Object.keys(localStorage).forEach((key) => { if (!keepKeys.has(key)) localStorage.removeItem(key); });
-      Object.keys(sessionStorage).forEach((key) => sessionStorage.removeItem(key));
-      studentStoreCache = null;
-      classStoreCache = null;
-      subjectStoreCache = null;
-      teacherStoreCache = null;
-      assignmentStoreCache = null;
-      try { indexedDB.deleteDatabase("skulgo-safe-data"); } catch {}
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.filter((key) => key.startsWith("skulgo-")).map((key) => caches.delete(key)));
-      }
-      window.location.href = "../";
-    } catch (error) {
-      window.alert("Could not complete the reset. Please try again.");
-      console.warn("SkulGo fresh-start reset failed", error);
-    }
-  });
 
   document.querySelector("#edit-school").addEventListener("click", () => {
     const current = loadSchool();
@@ -2088,6 +2063,59 @@ function renderTransfer() {
     }
   };
 }
+function renderSettings() {
+  page.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <h2>Settings</h2>
+        <p class="muted">Manage school setup and device data.</p>
+      </div>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>School Setup</h3>
+        <p>Update the school's identity, sections, academic session and current term.</p>
+        <button class="primary-button" id="settings-edit-school" type="button">Edit School Setup</button>
+      </div>
+      <div class="card">
+        <h3>Start Fresh</h3>
+        <p>Remove SkulGo school data stored on this device and clear local safety snapshots. The application itself will not be deleted.</p>
+        <button class="secondary-button" id="settings-reset-app" type="button">Start Fresh</button>
+      </div>
+    </div>`;
+
+  document.querySelector("#settings-edit-school").addEventListener("click", async () => {
+    nav.forEach((item) => item.classList.remove("active"));
+    document.querySelector('[data-section="school"]').classList.add("active");
+    await renderSchool();
+    document.querySelector("#edit-school")?.click();
+  });
+
+  document.querySelector("#settings-reset-app").addEventListener("click", async () => {
+    const confirmed = window.confirm("Start fresh? This will remove SkulGo school data stored on this device and clear the app's local safety snapshots. The application itself will not be deleted.");
+    if (!confirmed) return;
+    try {
+      const keepKeys = new Set(["skulgo.app.role.v1"]);
+      Object.keys(localStorage).forEach((key) => { if (!keepKeys.has(key)) localStorage.removeItem(key); });
+      Object.keys(sessionStorage).forEach((key) => sessionStorage.removeItem(key));
+      studentStoreCache = null;
+      classStoreCache = null;
+      subjectStoreCache = null;
+      teacherStoreCache = null;
+      assignmentStoreCache = null;
+      try { indexedDB.deleteDatabase("skulgo-safe-data"); } catch {}
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((key) => key.startsWith("skulgo-")).map((key) => caches.delete(key)));
+      }
+      window.location.href = "../";
+    } catch (error) {
+      window.alert("Could not complete the reset. Please try again.");
+      console.warn("SkulGo fresh-start reset failed", error);
+    }
+  });});
+}
+
 function render(section) {
   const [heading] = labels[section] || [section, section];
   title.textContent = heading;
@@ -2112,6 +2140,8 @@ function render(section) {
     renderReportCard();
   } else if (section === "transfer") {
     renderTransfer();
+  } else if (section === "settings") {
+    renderSettings();
   } else {
     page.innerHTML = `<h2>${heading}</h2><p class="muted">This module is not wired into the Admin shell yet.</p>`;
   }
