@@ -1307,15 +1307,17 @@ function renderResults() {
   const classes = loadClasses().filter((item) => item.schoolId === school.schoolId);
   const subjects = loadSubjects().filter((item) => item.schoolId === school.schoolId && item.status === "ACTIVE");
   const students = loadStore().students.filter((item) => item.schoolId === school.schoolId);
+  const sessionId = school.session?.sessionId || school.session?.name || "";
+  const termId = school.term?.termId || school.term?.name || "";
   const records = loadResultsRecords().filter((item) =>
     item.schoolId === school.schoolId &&
-    String(item.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
-    String(item.termId || "") === String(school.term?.termId || school.term?.name || "")
+    String(item.sessionId || "") === String(sessionId) &&
+    String(item.termId || "") === String(termId)
   );
 
   page.innerHTML = `
     <div class="section-heading">
-      <div><h2>Results</h2><p class="muted">View student CA, exam, total and grade for the current academic period.</p></div>
+      <div><h2>Results</h2><p class="muted">View and enter student CA, exam, total and grade for the current academic period.</p></div>
     </div>
     <form class="form-card" id="results-selector">
       <div class="form-grid">
@@ -1324,7 +1326,7 @@ function renderResults() {
         <label>Session<input value="${escapeHtml(school.session.name)}" readonly></label>
         <label>Term<input value="${escapeHtml(school.term.name)}" readonly></label>
       </div>
-      <div class="form-actions"><button class="primary-button" type="submit">Load results</button></div>
+      <div class="form-actions"><button class="primary-button" type="submit">Load Results</button></div>
     </form>
     <div id="results-list"></div>`;
 
@@ -1343,25 +1345,7 @@ function renderResults() {
     }
 
     const classStudents = students.filter((student) => student.classId === classId);
-    const rows = classStudents.map((student) => {
-      const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subjectId);
-      const total = record ? calculateResultTotal(record) : undefined;
-      return { student, record, total, grade: calculateResultGrade(total, gradeScale) };
-    });
-
-    document.querySelector("#results-list").innerHTML = `
-      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} N/A ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} - ${escapeHtml(school.term.name)}</p></div></div>    document.querySelector("#results-list").insertAdjacentHTML("afterbegin", `
-      <div class="card">
-        <h3>Subject Results Entry</h3>
-        <p class="muted">Admin can enter CA and Exam scores directly, or import scores submitted by the Teacher.</p>
-        <div class="form-actions">
-          <button type="button" class="primary-button" id="admin-add-ca">Add CA</button>
-          <button type="button" class="primary-button" id="admin-add-exam">Add Exam</button>
-        </div>
-        <div id="admin-result-entry"></div>
-      </div>`);
-
-    const renderAdminEntry = (kind) => {
+    const renderEntry = (kind) => {
       const entry = document.querySelector("#admin-result-entry");
       const label = kind === "ca" ? "CA" : "Exam";
       const defaultMax = kind === "ca" ? 20 : 60;
@@ -1373,16 +1357,13 @@ function renderResults() {
             <label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label>
           </div>
           <div class="card"><h3>Student scores</h3>${classStudents.map((student) => `
-            <div class="score-row">
-              <div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
-              <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - max" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}">
-            </div>`).join("")}</div>
+            <div class="score-row"><div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
+            <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}"></div>`).join("")}</div>
           <div class="form-actions"><button class="primary-button">Save ${label} Scores</button><button type="button" class="small-button" id="cancel-admin-result-entry">Cancel</button></div>
           <p class="form-message" id="admin-result-entry-message"></p>
         </form>`;
 
       document.querySelector("#cancel-admin-result-entry").onclick = () => { entry.innerHTML = ""; };
-
       document.querySelector("#admin-result-entry-form").onsubmit = (e) => {
         e.preventDefault();
         const d = new FormData(e.currentTarget);
@@ -1390,17 +1371,10 @@ function renderResults() {
         const message = document.querySelector("#admin-result-entry-message");
         if (!Number.isFinite(maximumScore) || maximumScore <= 0) { message.textContent = "Maximum score must be greater than zero."; return; }
 
-        const next = loadResultsRecords().filter((record) => record.schoolId !== school.schoolId ||
-          record.classId !== classId || record.subjectId !== subjectId ||
-          String(record.sessionId || "") !== String(school.session?.sessionId || school.session?.name || "") ||
-          String(record.termId || "") !== String(school.term?.termId || school.term?.name || ""));
-
-        const existing = new Map(loadResultsRecords()
-          .filter((record) => record.schoolId === school.schoolId && record.classId === classId && record.subjectId === subjectId &&
-            String(record.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
-            String(record.termId || "") === String(school.term?.termId || school.term?.name || ""))
-          .map((record) => [record.studentId, record]));
-
+        const all = loadResultsRecords();
+        const keyMatches = (record) => record.schoolId === school.schoolId && record.classId === classId && record.subjectId === subjectId &&
+          String(record.sessionId || "") === String(sessionId) && String(record.termId || "") === String(termId);
+        const existing = new Map(all.filter(keyMatches).map((record) => [record.studentId, record]));
         for (const student of classStudents) {
           const raw = d.get("score-" + student.studentId);
           if (raw === null || String(raw).trim() === "") continue;
@@ -1410,59 +1384,44 @@ function renderResults() {
             return;
           }
           const record = { ...(existing.get(student.studentId) || {}), resultId: existing.get(student.studentId)?.resultId || id("result"),
-            schoolId: school.schoolId, classId, subjectId, studentId: student.studentId,
-            sessionId: school.session?.sessionId || school.session?.name || "",
-            termId: school.term?.termId || school.term?.name || "" };
+            schoolId: school.schoolId, classId, subjectId, studentId: student.studentId, sessionId, termId };
           record[kind] = score;
           record[kind + "Name"] = String(d.get("name") || label).trim();
           record[kind + "Maximum"] = maximumScore;
           record[kind + "Date"] = String(d.get("date") || "");
           existing.set(student.studentId, record);
         }
-
-        const merged = [...next, ...existing.values()];
-        writeStorage(RESULTS_STORAGE_KEY, JSON.stringify(merged));
+        const untouched = all.filter((record) => !keyMatches(record));
+        writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...untouched, ...existing.values()]));
         renderResults();
-        document.querySelector("#results-selector [name=classId]").value = classId;
-        document.querySelector("#results-selector [name=subjectId]").value = subjectId;
-        document.querySelector("#results-selector").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       };
     };
 
-    document.querySelector("#admin-add-ca").onclick = () => renderAdminEntry("ca");
-    document.querySelector("#admin-add-exam").onclick = () => renderAdminEntry("exam");
-
+    document.querySelector("#results-list").innerHTML = `
+      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} — ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} — ${escapeHtml(school.term.name)}</p></div></div>
+      <div class="card">
+        <h3>Subject Results Entry</h3>
+        <p class="muted">Admin can enter CA and Exam scores directly, or import scores submitted by the Teacher.</p>
+        <div class="form-actions"><button type="button" class="primary-button" id="admin-add-ca">Add CA</button><button type="button" class="primary-button" id="admin-add-exam">Add Exam</button></div>
+        <div id="admin-result-entry"></div>
+      </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Student</th><th>Admission number</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
-        <tbody>${rows.length ? rows.map(({student,record,total,grade}) => `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
+        <thead><tr><th>Student</th><th>Admission ID</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody>${classStudents.length ? classStudents.map((student) => {
+          const record = records.find((item) => item.studentId === student.studentId && item.classId === classId && item.subjectId === subjectId);
+          const total = record ? calculateResultTotal(record) : undefined;
+          const grade = calculateResultGrade(total, gradeScale);
+          return `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`;
+        }).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
       </table></div>
-      ${rows.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
-      ${records.length && !gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
+      ${classStudents.length && !records.some((item) => item.classId === classId && item.subjectId === subjectId) ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
+      ${!gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
     `;
 
-    document.querySelector("#publish-report-card").addEventListener("click", () => {
-      if (isReportPublished(remarksKey)) return;
-      saveStudentRemark(remarksKey,{classTeacher:document.querySelector("#class-teacher-remark").value.trim(),principal:document.querySelector("#principal-remark").value.trim(),encouragement:document.querySelector("#encouragement-remark").value.trim()});
-      savePublishedReport(remarksKey);
-      const button=document.querySelector("#publish-report-card");button.textContent="Published Officially";button.disabled=true;
-    });
-    document.querySelector("#share-report-card").addEventListener("click", async () => {
-      const textToShare=school.name+" — Report Card — "+student.name+" — "+school.term.name;
-      if(navigator.share) await navigator.share({title:"Official Report Card",text:textToShare});
-      else if(navigator.clipboard){await navigator.clipboard.writeText(textToShare);alert("Report Card details copied.");}
-    });
-    document.querySelector("#print-report-card").addEventListener("click",()=>{const paper=document.querySelector("#report-card-output .report-card-paper");printReportCards(paper?.outerHTML||"","Report Card");});
-    document.querySelector("#save-report-remarks").addEventListener("click", () => {
-      saveStudentRemark(remarksKey, {
-        classTeacher: document.querySelector("#class-teacher-remark").value.trim(),
-        principal: document.querySelector("#principal-remark").value.trim(),
-        encouragement: document.querySelector("#encouragement-remark").value.trim()
-      });
-      document.querySelector("#save-report-remarks").insertAdjacentHTML("afterend", '<span class="notice-inline">Remarks saved.</span>');
-    });
+    document.querySelector("#admin-add-ca").onclick = () => renderEntry("ca");
+    document.querySelector("#admin-add-exam").onclick = () => renderEntry("exam");
   });
 }
-
 
 const REPORT_PUBLISH_STORAGE_KEY = "skulgo.admin.report-card-published.v1";
 function loadPublishedReports(){try{const p=JSON.parse(readStorage(REPORT_PUBLISH_STORAGE_KEY)||"{}");return p&&typeof p==="object"?p:{};}catch{return {};}}
