@@ -1350,7 +1350,88 @@ function renderResults() {
     });
 
     document.querySelector("#results-list").innerHTML = `
-      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} N/A ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} - ${escapeHtml(school.term.name)}</p></div></div>
+      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} N/A ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} - ${escapeHtml(school.term.name)}</p></div></div>    document.querySelector("#results-list").insertAdjacentHTML("afterbegin", `
+      <div class="card">
+        <h3>Subject Results Entry</h3>
+        <p class="muted">Admin can enter CA and Exam scores directly, or import scores submitted by the Teacher.</p>
+        <div class="form-actions">
+          <button type="button" class="primary-button" id="admin-add-ca">Add CA</button>
+          <button type="button" class="primary-button" id="admin-add-exam">Add Exam</button>
+        </div>
+        <div id="admin-result-entry"></div>
+      </div>`);
+
+    const renderAdminEntry = (kind) => {
+      const entry = document.querySelector("#admin-result-entry");
+      const label = kind === "ca" ? "CA" : "Exam";
+      const defaultMax = kind === "ca" ? 20 : 60;
+      entry.innerHTML = `
+        <form class="form-card" id="admin-result-entry-form">
+          <div class="form-grid">
+            <label>${label} name<input name="name" value="${label === "CA" ? "CA 1" : "EXAM"}" required></label>
+            <label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="${defaultMax}" required></label>
+            <label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label>
+          </div>
+          <div class="card"><h3>Student scores</h3>${classStudents.map((student) => `
+            <div class="score-row">
+              <div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
+              <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - max" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}">
+            </div>`).join("")}</div>
+          <div class="form-actions"><button class="primary-button">Save ${label} Scores</button><button type="button" class="small-button" id="cancel-admin-result-entry">Cancel</button></div>
+          <p class="form-message" id="admin-result-entry-message"></p>
+        </form>`;
+
+      document.querySelector("#cancel-admin-result-entry").onclick = () => { entry.innerHTML = ""; };
+
+      document.querySelector("#admin-result-entry-form").onsubmit = (e) => {
+        e.preventDefault();
+        const d = new FormData(e.currentTarget);
+        const maximumScore = Number(d.get("maximumScore"));
+        const message = document.querySelector("#admin-result-entry-message");
+        if (!Number.isFinite(maximumScore) || maximumScore <= 0) { message.textContent = "Maximum score must be greater than zero."; return; }
+
+        const next = loadResultsRecords().filter((record) => record.schoolId !== school.schoolId ||
+          record.classId !== classId || record.subjectId !== subjectId ||
+          String(record.sessionId || "") !== String(school.session?.sessionId || school.session?.name || "") ||
+          String(record.termId || "") !== String(school.term?.termId || school.term?.name || ""));
+
+        const existing = new Map(loadResultsRecords()
+          .filter((record) => record.schoolId === school.schoolId && record.classId === classId && record.subjectId === subjectId &&
+            String(record.sessionId || "") === String(school.session?.sessionId || school.session?.name || "") &&
+            String(record.termId || "") === String(school.term?.termId || school.term?.name || ""))
+          .map((record) => [record.studentId, record]));
+
+        for (const student of classStudents) {
+          const raw = d.get("score-" + student.studentId);
+          if (raw === null || String(raw).trim() === "") continue;
+          const score = Number(raw);
+          if (!Number.isFinite(score) || score < 0 || score > maximumScore) {
+            message.textContent = "Each score must be between 0 and the maximum score.";
+            return;
+          }
+          const record = { ...(existing.get(student.studentId) || {}), resultId: existing.get(student.studentId)?.resultId || id("result"),
+            schoolId: school.schoolId, classId, subjectId, studentId: student.studentId,
+            sessionId: school.session?.sessionId || school.session?.name || "",
+            termId: school.term?.termId || school.term?.name || "" };
+          record[kind] = score;
+          record[kind + "Name"] = String(d.get("name") || label).trim();
+          record[kind + "Maximum"] = maximumScore;
+          record[kind + "Date"] = String(d.get("date") || "");
+          existing.set(student.studentId, record);
+        }
+
+        const merged = [...next, ...existing.values()];
+        writeStorage(RESULTS_STORAGE_KEY, JSON.stringify(merged));
+        renderResults();
+        document.querySelector("#results-selector [name=classId]").value = classId;
+        document.querySelector("#results-selector [name=subjectId]").value = subjectId;
+        document.querySelector("#results-selector").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      };
+    };
+
+    document.querySelector("#admin-add-ca").onclick = () => renderAdminEntry("ca");
+    document.querySelector("#admin-add-exam").onclick = () => renderAdminEntry("exam");
+
       <div class="table-wrap"><table>
         <thead><tr><th>Student</th><th>Admission number</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
         <tbody>${rows.length ? rows.map(({student,record,total,grade}) => `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
