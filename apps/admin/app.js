@@ -694,22 +694,22 @@ function renderStudentsFromStore() {
     <div class="section-heading">
       <div>
         <h2>Students</h2>
-        <p class="muted">Admit students locally. Approval creates the student record.</p>
+        <p class="muted">Manage student records and admissions on this device.</p>
       </div>
-      <button class="primary-button" id="new-admission">New admission</button>
+      <button class="primary-button" id="new-admission">New Admission</button>
     </div>
 
     <div id="student-form"></div>
 
-    <h3>Students</h3>
+    <h3>Student Records</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Admission number</th><th>Class</th><th>Gender</th></tr></thead>
+        <thead><tr><th>Name</th><th>Admission ID</th><th>Class</th><th>Gender</th></tr></thead>
         <tbody id="student-rows"></tbody>
       </table>
     </div>
 
-    <h3>Pending admissions</h3>
+    <h3>Pending Admissions</h3>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Name</th><th>Admission number</th><th>Class</th><th>Action</th></tr></thead>
@@ -744,7 +744,7 @@ function renderStudentsFromStore() {
           </label>
           <label>Gender<select name="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
         </div>
-        <div class="form-actions"><button class="primary-button" type="submit">Save admission</button></div>
+        <div class="form-actions"><button class="primary-button" type="submit">Save Admission</button></div>
       </form>`;
     document.querySelector("#admission-form").addEventListener("submit", async (event) => {
       event.preventDefault();
