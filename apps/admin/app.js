@@ -687,7 +687,6 @@ function renderStudentsFromStore() {
   }
 
   const store = loadStore();
-  const pending = store.admissions.filter((a) => a.status === "PENDING" && a.schoolId === school.schoolId);
   const students = store.students.filter((s) => s.schoolId === school.schoolId);
 
   page.innerHTML = `
@@ -709,13 +708,7 @@ function renderStudentsFromStore() {
       </table>
     </div>
 
-    <h3>Pending Admissions</h3>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Name</th><th>Admission number</th><th>Class</th><th>Action</th></tr></thead>
-        <tbody id="admission-rows"></tbody>
-      </table>
-    </div>`;
+  `;
 
   const className = (classId) => {
     const item = loadClasses().find((entry) => entry.schoolId === school.schoolId && entry.classId === classId);
@@ -726,9 +719,6 @@ function renderStudentsFromStore() {
     ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "â")}</td><td>${escapeHtml(className(s.classId) || "â")}</td><td>${escapeHtml(s.gender || "â")}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No students yet.</td></tr>';
 
-  document.querySelector("#admission-rows").innerHTML = pending.length
-    ? pending.map((a) => `<tr><td>${escapeHtml(a.applicantName)}</td><td>${escapeHtml(a.admissionNumber || "â")}</td><td>${escapeHtml(className(a.intendedClassId) || "â")}</td><td><button class="small-button" data-approve="${a.admissionId}">Approve</button></td></tr>`).join("")
-    : '<tr><td colspan="4" class="empty">No pending admissions.</td></tr>';
 
   document.querySelector("#new-admission").addEventListener("click", () => {
     document.querySelector("#student-form").innerHTML = `
