@@ -1709,26 +1709,104 @@ function renderReportCard() {
 
 
 
-function downloadJson(filename, data) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
+function escapePdfText(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\\(/g, "\\(")
+    .replace(/\\)/g, "\\)");
 }
-function readJsonFile() {
-  return new Promise((resolve, reject) => {
-    const input = document.createElement("input"); input.type = "file"; input.accept = ".json,application/json";
-    input.onchange = async () => { const file = input.files?.[0]; if (!file) return reject(new Error("No file selected.")); try { resolve(JSON.parse(await file.text())); } catch { reject(new Error("The selected file is not valid JSON.")); } };
-    input.click();
-  });
-}
-function shareOrDownloadJson(filename, data, titleText) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const file = new File([blob], filename, { type: "application/json" });
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    return navigator.share({ files: [file], title: titleText }).then(() => true).catch(() => false);
+
+function createBackupPdf(school, classItem, students, subjects, assignments, attendance, results) {
+  const lines = [
+    school.name || "SkulGo School",
+    "BACKUP RECORD",
+    "",
+    "Class: " + (classItem.name || ""),
+    "Academic Session: " + (school.session?.name || ""),
+    "Term: " + (school.term?.name || ""),
+    "",
+    "STUDENTS",
+    ...students.map((student, index) =>
+      (index + 1) + ". " + (student.name || "") + " | ID: " + (student.studentId || "") +
+      " | " + (student.gender || student.sex || "") + " | " + (student.status || "ACTIVE")
+    ),
+    "",
+    "SUBJECTS",
+    ...subjects.map((subject, index) => (index + 1) + ". " + (subject.name || "")),
+    "",
+    "TEACHING ASSIGNMENTS",
+    ...assignments.map((assignment, index) =>
+      (index + 1) + ". Subject ID: " + (assignment.subjectId || "N/A") +
+      " | Teacher ID: " + (assignment.teacherId || "N/A")
+    ),
+    "",
+    "RECORD SUMMARY",
+    "Attendance records: " + attendance.length,
+    "Result records: " + results.length,
+    "",
+    "Created by SkulGo App",
+    "Created: " + new Date().toLocaleString()
+  ];
+
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 48;
+  const lineHeight = 14;
+  const maxLines = Math.floor((pageHeight - 2 * margin) / lineHeight);
+  const pages = [];
+  for (let i = 0; i < lines.length; i += maxLines) pages.push(lines.slice(i, i + maxLines));
+  if (!pages.length) pages.push(["SkulGo App Backup"]);
+
+  const objects = [];
+  const addObject = (value) => { objects.push(value); return objects.length; };
+
+  const catalogId = addObject("<< /Type /Catalog /Pages 2 0 R >>");
+  const pagesId = addObject("PAGES_PLACEHOLDER");
+  const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const pageIds = [];
+
+  for (const pageLines of pages) {
+    const commands = ["BT", "/F1 10 Tf", margin + " " + (pageHeight - margin) + " Td"];
+    pageLines.forEach((line, index) => {
+      if (index > 0) commands.push("0 -" + lineHeight + " Td");
+      commands.push("(" + escapePdfText(line) + ") Tj");
+    });
+    commands.push("ET");
+    const stream = commands.join("\\n");
+    const streamId = addObject("<< /Length " + stream.length + " >>\\nstream\\n" + stream + "\\nendstream");
+    const pageId = addObject("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageWidth + " " + pageHeight + "] /Resources << /Font << /F1 3 0 R >> >> /Contents " + streamId + " 0 R >>");
+    pageIds.push(pageId);
   }
-  downloadJson(filename, data);
-  return Promise.resolve(false);
+
+  objects[pagesId - 1] = "<< /Type /Pages /Kids [" + pageIds.map(id => id + " 0 R").join(" ") + "] /Count " + pageIds.length + " >>";
+
+  let pdf = "%PDF-1.4\\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets[index + 1] = pdf.length;
+    pdf += (index + 1) + " 0 obj\\n" + object + "\\nendobj\\n";
+  });
+  const xrefOffset = pdf.length;
+  pdf += "xref\\n0 " + (objects.length + 1) + "\\n";
+  pdf += "0000000000 65535 f \\n";
+  for (let i = 1; i <= objects.length; i++) {
+    pdf += String(offsets[i]).padStart(10, "0") + " 00000 n \\n";
+  }
+  pdf += "trailer\\n<< /Size " + (objects.length + 1) + " /Root " + catalogId + " 0 R >>\\n";
+  pdf += "startxref\\n" + xrefOffset + "\\n%%EOF";
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadBackupPdf(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function renderTransfer() {
@@ -1737,22 +1815,22 @@ function renderTransfer() {
     page.innerHTML = '<h2>Backup</h2><p class="muted">Set up the school first.</p>';
     return;
   }
+
   const classes = loadClasses().filter(c => c.schoolId === school.schoolId);
   const subjects = loadSubjects().filter(s => s.schoolId === school.schoolId && s.status === "ACTIVE");
   const assignments = loadAssignments().filter(a => a.schoolId === school.schoolId && a.status === "ACTIVE");
   const students = loadStore().students.filter(s => s.schoolId === school.schoolId);
 
   page.innerHTML =
-    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Export a school backup file to share or keep safely. Import a backup file when needed.</p></div></div>' +
+    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Create a PDF backup for a class. The file is saved on this device for you to share or keep safely.</p></div></div>' +
     '<div class="cards">' +
-      '<div class="card"><h3>Export Backup</h3><p>Choose a class, create the backup file, then share it using WhatsApp, Gmail, Bluetooth, USB or any other available option.</p>' +
+      '<div class="card"><h3>Export Backup</h3><p>Choose a class and create its PDF backup. You can then share the file using WhatsApp, Gmail, Bluetooth, USB or any other option available on your device.</p>' +
       '<form id="export-backup-form" class="form-card"><div class="form-grid"><label>Class<select name="classId" required><option value="">Select class</option>' +
       classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
       '</select></label></div><div class="form-actions"><button class="primary-button">Export Backup</button></div><p class="form-message" id="export-message"></p></form></div>' +
-      '<div class="card"><h3>Import Backup</h3><p>Select a backup file from your device. SkulGo checks the school, class, student, subject and record identities before applying it.</p><button class="primary-button" id="import-backup">Import Backup</button><p class="form-message" id="import-message"></p></div>' +
     '</div>';
 
-  document.querySelector("#export-backup-form").onsubmit = async (e) => {
+  document.querySelector("#export-backup-form").onsubmit = (e) => {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     const classItem = classes.find(c => c.classId === String(d.get("classId")));
@@ -1762,66 +1840,22 @@ function renderTransfer() {
     const classStudents = students.filter(s => s.classId === classItem.classId);
     const classSubjects = subjects.filter(s => s.classId === classItem.classId);
     const classAssignments = assignments.filter(a => a.classId === classItem.classId);
+    const attendance = loadAttendance().filter(r => r.classId === classItem.classId);
+    const results = loadResultsRecords().filter(r => r.classId === classItem.classId);
 
-    const pkg = {
-      skulgoTransfer: "v1",
-      direction: "BACKUP",
-      backupType: "CLASS",
-      exportedAt: new Date().toISOString(),
-      school: { schoolId: school.schoolId, name: school.name, session: school.session, term: school.term },
-      class: { classId: classItem.classId, name: classItem.name, sectionId: classItem.sectionId || null },
-      students: classStudents.map(s => ({ studentId: s.studentId, name: s.name, sex: s.gender || s.sex || "", status: s.status || "ACTIVE" })),
-      subjects: classSubjects.map(s => ({ subjectId: s.subjectId, name: s.name, classId: s.classId, studentIds: s.studentIds || [] })),
-      assignments: classAssignments.map(a => ({ teacherId: a.teacherId, assignmentType: a.assignmentType, subjectId: a.subjectId || null, classId: a.classId })),
-      records: {
-        attendance: loadAttendance().filter(r => r.classId === classItem.classId),
-        results: loadResultsRecords().filter(r => r.classId === classItem.classId)
-      }
-    };
+    const pdf = createBackupPdf(
+      school,
+      classItem,
+      classStudents,
+      classSubjects,
+      classAssignments,
+      attendance,
+      results
+    );
 
-    const filename = "skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-backup.json";
-    const shared = await shareOrDownloadJson(filename, pkg, "SkulGo Backup");
-    message.textContent = shared ? "Backup ready to share." : "Backup file created on this device.";
-  };
-
-  document.querySelector("#import-backup").onclick = async () => {
-    const message = document.querySelector("#import-message");
-    try {
-      const pkg = await readJsonFile();
-      if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "BACKUP") throw new Error("This is not a SkulGo backup file.");
-      if (pkg.school?.schoolId !== school.schoolId) throw new Error("School ID does not match this school.");
-      if (!pkg.class?.classId) throw new Error("The backup has no valid class.");
-
-      const classItem = classes.find(c => c.classId === pkg.class.classId);
-      if (!classItem) throw new Error("Class ID is not registered in this school.");
-
-      for (const record of (pkg.records?.attendance || [])) {
-        const student = students.find(s => s.studentId === record.studentId && s.classId === classItem.classId);
-        if (!student) throw new Error("Backup contains an unknown student or wrong class.");
-      }
-      for (const record of (pkg.records?.results || [])) {
-        const student = students.find(s => s.studentId === record.studentId && s.classId === classItem.classId);
-        if (!student) throw new Error("Backup contains an unknown student or wrong class.");
-      }
-
-      if (Array.isArray(pkg.records?.attendance)) {
-        const existing = loadAttendance();
-        const map = new Map(existing.map(r => [r.attendanceId || r.id || [r.classId, r.studentId, r.date].join("|"), r]));
-        pkg.records.attendance.forEach(r => map.set(r.attendanceId || r.id || [r.classId, r.studentId, r.date].join("|"), { ...r, schoolId: school.schoolId }));
-        saveAttendance([...map.values()]);
-      }
-
-      if (Array.isArray(pkg.records?.results)) {
-        const existing = loadResultsRecords();
-        const map = new Map(existing.map(r => [r.resultId || [r.studentId, r.subjectId, r.sessionId, r.termId].join("|"), r]));
-        pkg.records.results.forEach(r => map.set(r.resultId || [r.studentId, r.subjectId, r.sessionId, r.termId].join("|"), { ...r, schoolId: school.schoolId }));
-        writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...map.values()]));
-      }
-
-      message.textContent = "Backup imported and validated.";
-    } catch (error) {
-      message.textContent = error?.message || "Could not import backup.";
-    }
+    const filename = "skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-backup.pdf";
+    downloadBackupPdf(filename, pdf);
+    message.textContent = "PDF backup created on this device.";
   };
 }
 function render(section) {
