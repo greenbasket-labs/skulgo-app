@@ -41,18 +41,6 @@ function renderReportCardRevenue() {
 }
 
 (function registerReportCardRevenueModule() {
-  const revenueNav = document.createElement("button");
-  revenueNav.className = "nav-item";
-  revenueNav.dataset.section = "report-card-revenue";
-  revenueNav.textContent = "Report Card Revenue";
-
-  const reportCardNav = document.querySelector('[data-section="report-card"]');
-  reportCardNav?.insertAdjacentElement("afterend", revenueNav);
-
-  revenueNav.addEventListener("click", () => {
-    nav.forEach((item) => item.classList.remove("active"));
-    revenueNav.classList.add("active");
-    title.textContent = "Report Card Revenue";
-    renderReportCardRevenue();
-  });
+  // Hidden for now. Keep the module available for a later school-request flow.
+  return;
 })();
