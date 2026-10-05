@@ -1716,7 +1716,7 @@ function escapePdfText(value) {
     .replace(/\\)/g, "\\)");
 }
 
-function createBackupPdf(school, classItem, students, subjects, assignments, attendance, results) {
+function createBackupPdf(school, classItem, students, subjects, assignments, attendance, results, backupPayload) {
   const lines = [
     school.name || "SkulGo School",
     "BACKUP RECORD",
@@ -1743,6 +1743,9 @@ function createBackupPdf(school, classItem, students, subjects, assignments, att
     "RECORD SUMMARY",
     "Attendance records: " + attendance.length,
     "Result records: " + results.length,
+    "",
+    "BACKUP DATA",
+    ...encodeBackupPayload(backupPayload).match(/.{1,160}/g).map((chunk) => "SKULGO_DATA:" + chunk),
     "",
     "Created by SkulGo App",
     "Created: " + new Date().toLocaleString()
@@ -1809,6 +1812,183 @@ function downloadBackupPdf(filename, blob) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+
+function encodeBackupPayload(payload) {
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function decodeBackupPayload(encoded) {
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function normalizeBackupPayload(pkg) {
+  return {
+    ...pkg,
+    school: {
+      schoolId: String(pkg.school?.schoolId || ""),
+      name: String(pkg.school?.name || ""),
+      session: pkg.school?.session || null,
+      term: pkg.school?.term || null
+    },
+    class: {
+      classId: String(pkg.class?.classId || ""),
+      name: String(pkg.class?.name || ""),
+      sectionId: pkg.class?.sectionId || null
+    },
+    students: Array.isArray(pkg.students) ? pkg.students.map(student => ({
+      ...student,
+      studentId: String(student.studentId || "").trim(),
+      name: String(student.name || "").trim(),
+      gender: String(student.gender || student.sex || "").trim(),
+      status: String(student.status || "ACTIVE").trim(),
+      classId: String(student.classId || pkg.class?.classId || "").trim()
+    })).filter(student => student.studentId && student.name) : [],
+    subjects: Array.isArray(pkg.subjects) ? pkg.subjects.map(subject => ({
+      ...subject,
+      subjectId: String(subject.subjectId || "").trim(),
+      name: String(subject.name || "").trim(),
+      classId: String(subject.classId || pkg.class?.classId || "").trim(),
+      status: String(subject.status || "ACTIVE").trim(),
+      studentIds: Array.isArray(subject.studentIds) ? subject.studentIds.map(String) : []
+    })).filter(subject => subject.subjectId && subject.name) : [],
+    assignments: Array.isArray(pkg.assignments) ? pkg.assignments.map(assignment => ({
+      ...assignment,
+      assignmentId: assignment.assignmentId || assignment.id || null,
+      teacherId: assignment.teacherId ? String(assignment.teacherId) : null,
+      subjectId: assignment.subjectId ? String(assignment.subjectId) : null,
+      classId: String(assignment.classId || pkg.class?.classId || "").trim()
+    })).filter(assignment => assignment.classId) : [],
+    records: {
+      attendance: Array.isArray(pkg.records?.attendance) ? pkg.records.attendance.map(record => ({
+        ...record,
+        classId: String(record.classId || pkg.class?.classId || "").trim(),
+        studentId: String(record.studentId || "").trim()
+      })).filter(record => record.classId && record.studentId) : [],
+      results: Array.isArray(pkg.records?.results) ? pkg.records.results.map(record => ({
+        ...record,
+        classId: String(record.classId || pkg.class?.classId || "").trim(),
+        studentId: String(record.studentId || "").trim()
+      })).filter(record => record.classId && record.studentId) : []
+    }
+  };
+}
+
+async function importBackupPdf(file, school, classes) {
+  const text = await file.text();
+  const chunks = [...text.matchAll(/SKULGO_DATA:([A-Za-z0-9+/=]+)/g)].map(match => match[1]);
+  if (!chunks.length) throw new Error("This PDF does not contain a SkulGo backup.");
+
+  const pkg = normalizeBackupPayload(decodeBackupPayload(chunks.join("")));
+  if (pkg.skulgoTransfer !== "v1" || pkg.backupType !== "CLASS") {
+    throw new Error("This is not a supported SkulGo backup.");
+  }
+  if (pkg.school.schoolId !== school.schoolId) {
+    throw new Error("School ID does not match this school.");
+  }
+
+  const classItem = classes.find(c => c.classId === pkg.class.classId);
+  if (!classItem) throw new Error("Class ID is not registered in this school.");
+
+  for (const student of pkg.students) {
+    if (student.classId !== classItem.classId) {
+      throw new Error("Backup contains a student assigned to the wrong class.");
+    }
+  }
+  for (const subject of pkg.subjects) {
+    if (subject.classId !== classItem.classId) {
+      throw new Error("Backup contains a subject assigned to the wrong class.");
+    }
+  }
+  for (const assignment of pkg.assignments) {
+    if (assignment.classId !== classItem.classId) {
+      throw new Error("Backup contains an assignment assigned to the wrong class.");
+    }
+  }
+  for (const record of [...pkg.records.attendance, ...pkg.records.results]) {
+    if (record.classId !== classItem.classId) {
+      throw new Error("Backup contains a record assigned to the wrong class.");
+    }
+    if (!pkg.students.some(student => student.studentId === record.studentId)) {
+      throw new Error("Backup contains a record for an unknown student.");
+    }
+  }
+
+  const store = loadStore();
+  const existingStudents = new Map(store.students.map(student => [student.studentId, student]));
+  for (const incoming of pkg.students) {
+    const existing = existingStudents.get(incoming.studentId);
+    if (existing && existing.classId && existing.classId !== classItem.classId) {
+      throw new Error("Student ID " + incoming.studentId + " already belongs to another class.");
+    }
+    existingStudents.set(incoming.studentId, {
+      ...(existing || {}),
+      ...incoming,
+      schoolId: school.schoolId,
+      classId: classItem.classId
+    });
+  }
+  const admissionsById = new Map(store.admissions.map(admission => [admission.studentId || admission.admissionNumber, admission]));
+  for (const student of existingStudents.values()) {
+    if (student.schoolId === school.schoolId && student.classId === classItem.classId) {
+      const admission = admissionsById.get(student.studentId);
+      if (admission) admissionsById.set(student.studentId, { ...admission, ...student });
+    }
+  }
+  await saveStore({ admissions: [...admissionsById.values()], students: [...existingStudents.values()] });
+
+  const existingSubjects = new Map(loadSubjects().map(subject => [subject.subjectId, subject]));
+  for (const incoming of pkg.subjects) {
+    const existing = existingSubjects.get(incoming.subjectId);
+    if (existing && existing.classId && existing.classId !== classItem.classId) {
+      throw new Error("Subject ID " + incoming.subjectId + " already belongs to another class.");
+    }
+    existingSubjects.set(incoming.subjectId, { ...(existing || {}), ...incoming, schoolId: school.schoolId, classId: classItem.classId });
+  }
+  saveSubjects([...existingSubjects.values()]);
+
+  const existingAssignments = new Map(loadAssignments().map(assignment => [
+    assignment.assignmentId || assignment.id || [assignment.teacherId, assignment.classId, assignment.subjectId, assignment.assignmentType].join("|"),
+    assignment
+  ]));
+  for (const incoming of pkg.assignments) {
+    const key = incoming.assignmentId || [incoming.teacherId, incoming.classId, incoming.subjectId, incoming.assignmentType].join("|");
+    existingAssignments.set(key, { ...(existingAssignments.get(key) || {}), ...incoming, schoolId: school.schoolId, classId: classItem.classId });
+  }
+  saveAssignments([...existingAssignments.values()]);
+
+  const existingAttendance = loadAttendance();
+  const attendanceMap = new Map(existingAttendance.map(record => [
+    record.attendanceId || record.id || [record.classId, record.studentId, record.date].join("|"),
+    record
+  ]));
+  pkg.records.attendance.forEach(record => {
+    const key = record.attendanceId || record.id || [record.classId, record.studentId, record.date].join("|");
+    attendanceMap.set(key, { ...attendanceMap.get(key), ...record, schoolId: school.schoolId });
+  });
+  saveAttendance([...attendanceMap.values()]);
+
+  const existingResults = loadResultsRecords();
+  const resultsMap = new Map(existingResults.map(record => [
+    record.resultId || [record.studentId, record.subjectId, record.sessionId, record.termId].join("|"),
+    record
+  ]));
+  pkg.records.results.forEach(record => {
+    const key = record.resultId || [record.studentId, record.subjectId, record.sessionId, record.termId].join("|");
+    resultsMap.set(key, { ...resultsMap.get(key), ...record, schoolId: school.schoolId });
+  });
+  writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...resultsMap.values()]));
+
+  return pkg;
+}
+
 function renderTransfer() {
   const school = loadSchool();
   if (!school?.schoolId) {
@@ -1822,12 +2002,15 @@ function renderTransfer() {
   const students = loadStore().students.filter(s => s.schoolId === school.schoolId);
 
   page.innerHTML =
-    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Create a PDF backup for a class. The file is saved on this device for you to share or keep safely.</p></div></div>' +
+    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Export a class backup as PDF, or import a SkulGo backup PDF from this device. Imported data is normalized and merged safely.</p></div></div>' +
     '<div class="cards">' +
       '<div class="card"><h3>Export Backup</h3><p>Choose a class and create its PDF backup. You can then share the file using WhatsApp, Gmail, Bluetooth, USB or any other option available on your device.</p>' +
       '<form id="export-backup-form" class="form-card"><div class="form-grid"><label>Class<select name="classId" required><option value="">Select class</option>' +
       classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
       '</select></label></div><div class="form-actions"><button class="primary-button">Export Backup</button></div><p class="form-message" id="export-message"></p></form></div>' +
+      '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF from your device. SkulGo normalizes the data, validates identities, and merges it without deleting unrelated records.</p>' +
+      '<input type="file" id="import-backup-file" accept="application/pdf,.pdf">' +
+      '<div class="form-actions"><button type="button" class="primary-button" id="import-backup">Import Backup</button></div><p class="form-message" id="import-message"></p></div>' +
     '</div>';
 
   document.querySelector("#export-backup-form").onsubmit = (e) => {
@@ -1850,12 +2033,60 @@ function renderTransfer() {
       classSubjects,
       classAssignments,
       attendance,
-      results
+      results,
+      {
+        skulgoTransfer: "v1",
+        backupType: "CLASS",
+        exportedAt: new Date().toISOString(),
+        school: { schoolId: school.schoolId, name: school.name, session: school.session, term: school.term },
+        class: { classId: classItem.classId, name: classItem.name, sectionId: classItem.sectionId || null },
+        students: classStudents.map(s => ({
+          studentId: s.studentId,
+          name: s.name,
+          gender: s.gender || s.sex || "",
+          status: s.status || "ACTIVE",
+          classId: s.classId
+        })),
+        subjects: classSubjects.map(s => ({
+          subjectId: s.subjectId,
+          name: s.name,
+          classId: s.classId,
+          status: s.status || "ACTIVE",
+          studentIds: Array.isArray(s.studentIds) ? s.studentIds : []
+        })),
+        assignments: classAssignments.map(a => ({
+          assignmentId: a.assignmentId || a.id || null,
+          teacherId: a.teacherId || null,
+          assignmentType: a.assignmentType || null,
+          subjectId: a.subjectId || null,
+          classId: a.classId
+        })),
+        records: {
+          attendance,
+          results
+        }
+      }
     );
 
     const filename = "skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-backup.pdf";
     downloadBackupPdf(filename, pdf);
     message.textContent = "PDF backup created on this device.";
+  };
+
+  document.querySelector("#import-backup").onclick = async () => {
+    const message = document.querySelector("#import-message");
+    const input = document.querySelector("#import-backup-file");
+    const file = input?.files?.[0];
+    if (!file) {
+      message.textContent = "Select a backup PDF first.";
+      return;
+    }
+    try {
+      const pkg = await importBackupPdf(file, school, classes);
+      message.textContent = "Backup imported, normalized and merged safely for " + pkg.class.name + ".";
+    } catch (error) {
+      message.textContent = error?.message || "Could not import backup.";
+    }
   };
 }
 function render(section) {
