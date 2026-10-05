@@ -1511,19 +1511,6 @@ function renderReportCard() {
     printBatchReports(students, "All Classes");
   });
 
-  document.querySelector("#remark-bands-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const current = loadRemarkBands().bands;
-    const next = current.map((band, index) => ({
-      ...band,
-      minimumAverage: Number(data.get(`minimum-${index}`)),
-      remark: String(data.get(`remark-${index}`) || "").trim()
-    })).sort((a,b) => Number(b.minimumAverage) - Number(a.minimumAverage));
-    saveRemarkBands(next);
-    event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>Remark bands saved successfully.</strong></div>');
-  });
-
   document.querySelector("#report-card-selector").addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
