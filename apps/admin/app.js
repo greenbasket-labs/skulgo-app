@@ -300,7 +300,6 @@ async function renderSchool() {
         </dl>
       </div>` : ""}`;
 
-  document.querySelector("#edit-school").addEventListener("click", () => {
   document.querySelector("#reset-app").addEventListener("click", async () => {
     const confirmed = window.confirm("Start fresh? This will remove SkulGo school data stored on this device and clear the app's local safety snapshots. The application itself will not be deleted.");
     if (!confirmed) return;
@@ -325,6 +324,7 @@ async function renderSchool() {
     }
   });
 
+  document.querySelector("#edit-school").addEventListener("click", () => {
     const current = loadSchool();
     document.querySelector("#school-form").innerHTML = `
       <form class="form-card" id="school-setup-form">
