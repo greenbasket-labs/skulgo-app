@@ -1363,7 +1363,7 @@ function renderResults() {
             <p class="muted">Enter one score for each student offering this subject.</p>
             ${classStudents.length ? classStudents.map((student) => `
               <div class="score-row">
-                <div class="score-student"><strong>${escapeHtml(student.name)}</strong><span class="student-id">${escapeHtml(student.studentId)}</span></div>
+                <div class="score-student"><strong>${escapeHtml(student.name)}</strong></div>
                 <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}">
               </div>`).join("") : '<div class="empty">No students are enrolled in this class.</div>'}
           </div>
