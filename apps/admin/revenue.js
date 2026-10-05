@@ -29,13 +29,13 @@ function renderReportCardRevenue() {
     <div class="section-heading">
       <div>
         <h2>Report Card Revenue</h2>
-        <p class="muted">Paid report-card publishing is an upcoming feature.</p>
+        <p class="muted">Schools can request report-card printing or publishing.</p>
       </div>
     </div>
     <div class="card">
       <h3>Coming soon</h3>
-      <p>We are speaking with schools first to understand how report-card printing and publishing should work before introducing any payment or revenue settings.</p>
-      <p class="muted">No payment is collected, configured or required in this version.</p>
+      <p>Schools can request this service when needed.</p>
+      <p class="muted">No payment is required in this version.</p>
     </div>
   `;
 }
