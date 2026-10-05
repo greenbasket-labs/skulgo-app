@@ -29,7 +29,7 @@
       await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
         tx.objectStore(STORE).put({
-          app,
+          app: APP,
           savedAt: new Date().toISOString(),
           data
         }, APP);
