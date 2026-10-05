@@ -1452,6 +1452,14 @@ function renderReportCard() {
     return n % 10 === 1 ? n + "st" : n % 10 === 2 ? n + "nd" : n % 10 === 3 ? n + "rd" : n + "th";
   };
 
+  const remarkBands = loadRemarkBands();
+
+  page.innerHTML = `
+    <div class="report-card-selector-wrap">
+      <div class="section-heading">
+        <div><h2>Report Card</h2><p class="muted">Generate the student's term report from existing school records.</p></div>
+      </div>
+
       <form class="form-card" id="report-card-selector">
         <div class="form-grid">
           <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
