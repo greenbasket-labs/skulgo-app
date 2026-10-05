@@ -63,6 +63,7 @@
     banner.innerHTML = '<span><strong>SkulGo update available.</strong> Your school data is kept separately from the app update.</span><button type="button" style="border:0;border-radius:7px;padding:8px 12px;background:#116b42;color:#fff;cursor:pointer">Update</button>';
     banner.querySelector("button").onclick = async () => {
       await snapshot();
+      try { localStorage.setItem(VERSION_KEY, version.version); } catch {}
       if (navigator.serviceWorker?.controller) {
         try { await navigator.serviceWorker.getRegistration().then(r => r?.update()); } catch {}
       }
