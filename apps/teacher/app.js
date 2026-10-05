@@ -369,8 +369,7 @@ function render(section){
  if(section==="home") renderHome();
  else if(section==="classes") renderClasses();
  else if(section==="subjects") renderSubjects();
- else if(section==="transfer") renderTransfer();'<div class="card"><h2>Received</h2><p class="muted">Incoming subject records will appear here. Share and QR transport will be added after the local record flow is frozen.</p></div>';
- else if(section==="connect") renderTransfer();
+ else if(section==="transfer") renderTransfer();
  else if(section==="grade-band") renderGradeBand();
  else if(section==="settings") page.innerHTML='<div class="card"><h2>Settings</h2><p class="muted">Teacher profile and local workspace settings.</p></div>';
  else renderHome();
