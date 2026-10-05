@@ -1721,84 +1721,109 @@ function readJsonFile() {
     input.click();
   });
 }
+function shareOrDownloadJson(filename, data, titleText) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const file = new File([blob], filename, { type: "application/json" });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    return navigator.share({ files: [file], title: titleText }).then(() => true).catch(() => false);
+  }
+  downloadJson(filename, data);
+  return Promise.resolve(false);
+}
+
 function renderTransfer() {
   const school = loadSchool();
-  if (!school?.schoolId) { page.innerHTML = '<h2>Export / Import</h2><p class="muted">Set up the school first.</p>'; return; }
-  const teachers = loadTeachers().filter(t => t.schoolId === school.schoolId && t.status === "ACTIVE");
+  if (!school?.schoolId) {
+    page.innerHTML = '<h2>Backup</h2><p class="muted">Set up the school first.</p>';
+    return;
+  }
   const classes = loadClasses().filter(c => c.schoolId === school.schoolId);
   const subjects = loadSubjects().filter(s => s.schoolId === school.schoolId && s.status === "ACTIVE");
-  const assignments = loadAssignments().filter(a => a.schoolId === school.schoolId);
-  page.innerHTML = '<div class="section-heading"><div><h2>Export / Import</h2><p class="muted">Move school records by file. No live connection is required.</p></div></div>' +
-    '<div class="cards"><div class="card"><h3>Export to Teacher</h3><p>Class Master receives the full class roster. Subject Teacher receives the assigned subject and its students.</p><form id="export-teacher-form" class="form-card"><div class="form-grid"><label>Teacher<select name="teacherId" required><option value="">Select teacher</option>' +
-    teachers.map(t => '<option value="' + escapeHtml(t.teacherId) + '">' + escapeHtml(t.name) + '</option>').join("") +
-    '</select></label><label>Class<select name="classId" required><option value="">Select class</option>' +
-    classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
-    '</select></label></div><div class="form-actions"><button class="primary-button">Export class package</button></div><p class="form-message" id="export-message"></p></form></div>' +
-    '<div class="card"><h3>Import from Teacher</h3><p>Import attendance, CA, exam and result records. The school, teacher, class, student and subject IDs are checked first.</p><button class="primary-button" id="import-teacher">Import teacher submission</button><p class="form-message" id="import-message"></p></div></div>';
-  document.querySelector("#export-teacher-form").onsubmit = e => {
-    e.preventDefault(); const d = new FormData(e.currentTarget);
-    const teacher = teachers.find(t => t.teacherId === String(d.get("teacherId")));
+  const assignments = loadAssignments().filter(a => a.schoolId === school.schoolId && a.status === "ACTIVE");
+  const students = loadStore().students.filter(s => s.schoolId === school.schoolId);
+
+  page.innerHTML =
+    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Export a school backup file to share or keep safely. Import a backup file when needed.</p></div></div>' +
+    '<div class="cards">' +
+      '<div class="card"><h3>Export Backup</h3><p>Choose a class, create the backup file, then share it using WhatsApp, Gmail, Bluetooth, USB or any other available option.</p>' +
+      '<form id="export-backup-form" class="form-card"><div class="form-grid"><label>Class<select name="classId" required><option value="">Select class</option>' +
+      classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
+      '</select></label></div><div class="form-actions"><button class="primary-button">Export Backup</button></div><p class="form-message" id="export-message"></p></form></div>' +
+      '<div class="card"><h3>Import Backup</h3><p>Select a backup file from your device. SkulGo checks the school, class, student, subject and record identities before applying it.</p><button class="primary-button" id="import-backup">Import Backup</button><p class="form-message" id="import-message"></p></div>' +
+    '</div>';
+
+  document.querySelector("#export-backup-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
     const classItem = classes.find(c => c.classId === String(d.get("classId")));
-    const classAssignments = assignments.filter(a => a.classId === classItem?.classId && a.teacherId === teacher?.teacherId && a.status === "ACTIVE");
-    const classMaster = classAssignments.find(a => a.assignmentType === "CLASS_MASTER");
-    const subjectAssignments = classAssignments.filter(a => a.assignmentType === "SUBJECT_TEACHER" && a.subjectId);
     const message = document.querySelector("#export-message");
-    if (!teacher || !classItem) return;
-    if (!classMaster && !subjectAssignments.length) { message.textContent = "This teacher is not assigned to the selected class."; return; }
-    const subjectIds = subjectAssignments.map(a => a.subjectId);
-    const selectedSubjects = subjects.filter(s => s.classId === classItem.classId && subjectIds.includes(s.subjectId));
-    const students = loadStore().students.filter(s => s.schoolId === school.schoolId && s.classId === classItem.classId);
-    const selectedStudents = classMaster ? students : students.filter(s => selectedSubjects.some(sub => (sub.studentIds || []).includes(s.studentId)));
+    if (!classItem) return;
+
+    const classStudents = students.filter(s => s.classId === classItem.classId);
+    const classSubjects = subjects.filter(s => s.classId === classItem.classId);
+    const classAssignments = assignments.filter(a => a.classId === classItem.classId);
+
     const pkg = {
-      skulgoTransfer: "v1", direction: "ADMIN_TO_TEACHER", exportedAt: new Date().toISOString(),
+      skulgoTransfer: "v1",
+      direction: "BACKUP",
+      backupType: "CLASS",
+      exportedAt: new Date().toISOString(),
       school: { schoolId: school.schoolId, name: school.name, session: school.session, term: school.term },
-      teacher: { teacherId: teacher.teacherId, name: teacher.name },
-      assignment: classMaster ? { assignmentType: "CLASS_MASTER", classId: classItem.classId } : { assignmentType: "SUBJECT_TEACHER", classId: classItem.classId, subjectIds },
       class: { classId: classItem.classId, name: classItem.name, sectionId: classItem.sectionId || null },
-      students: selectedStudents.map(s => ({ studentId: s.studentId, name: s.name, sex: s.gender || s.sex || "", status: s.status || "ACTIVE" })),
-      subjects: selectedSubjects.map(s => ({ subjectId: s.subjectId, name: s.name, classId: s.classId, studentIds: s.studentIds || [] }))
+      students: classStudents.map(s => ({ studentId: s.studentId, name: s.name, sex: s.gender || s.sex || "", status: s.status || "ACTIVE" })),
+      subjects: classSubjects.map(s => ({ subjectId: s.subjectId, name: s.name, classId: s.classId, studentIds: s.studentIds || [] })),
+      assignments: classAssignments.map(a => ({ teacherId: a.teacherId, assignmentType: a.assignmentType, subjectId: a.subjectId || null, classId: a.classId })),
+      records: {
+        attendance: loadAttendance().filter(r => r.classId === classItem.classId),
+        results: loadResultsRecords().filter(r => r.classId === classItem.classId)
+      }
     };
-    downloadJson("skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-" + teacher.teacherId.replace(/[^a-z0-9]+/gi, "-") + ".json", pkg);
-    message.textContent = "Export created. Send this file to the Teacher.";
+
+    const filename = "skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-backup.json";
+    const shared = await shareOrDownloadJson(filename, pkg, "SkulGo Backup");
+    message.textContent = shared ? "Backup ready to share." : "Backup file created on this device.";
   };
-  document.querySelector("#import-teacher").onclick = async () => {
+
+  document.querySelector("#import-backup").onclick = async () => {
     const message = document.querySelector("#import-message");
     try {
       const pkg = await readJsonFile();
-      if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "TEACHER_TO_ADMIN") throw new Error("This is not a Teacher submission file.");
+      if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "BACKUP") throw new Error("This is not a SkulGo backup file.");
       if (pkg.school?.schoolId !== school.schoolId) throw new Error("School ID does not match this school.");
-      const teacher = loadTeachers().find(t => t.schoolId === school.schoolId && t.teacherId === pkg.teacher?.teacherId && t.status === "ACTIVE");
-      if (!teacher) throw new Error("Teacher ID is not registered or is disabled.");
-      const classItem = loadClasses().find(c => c.schoolId === school.schoolId && c.classId === pkg.class?.classId);
+      if (!pkg.class?.classId) throw new Error("The backup has no valid class.");
+
+      const classItem = classes.find(c => c.classId === pkg.class.classId);
       if (!classItem) throw new Error("Class ID is not registered in this school.");
-      const assigned = loadAssignments().filter(a => a.schoolId === school.schoolId && a.teacherId === teacher.teacherId && a.classId === classItem.classId && a.status === "ACTIVE");
-      if (!assigned.length) throw new Error("Teacher is not assigned to this class.");
-      const allowed = new Set(assigned.filter(a => a.assignmentType === "SUBJECT_TEACHER").map(a => a.subjectId).filter(Boolean));
-      const isMaster = assigned.some(a => a.assignmentType === "CLASS_MASTER");
+
       for (const record of (pkg.records?.attendance || [])) {
-        const student = loadStore().students.find(s => s.schoolId === school.schoolId && s.studentId === record.studentId && s.classId === classItem.classId);
-        if (!student) throw new Error("Attendance contains an unknown student or wrong class.");
+        const student = students.find(s => s.studentId === record.studentId && s.classId === classItem.classId);
+        if (!student) throw new Error("Backup contains an unknown student or wrong class.");
       }
       for (const record of (pkg.records?.results || [])) {
-        const student = loadStore().students.find(s => s.schoolId === school.schoolId && s.studentId === record.studentId && s.classId === classItem.classId);
-        if (!student) throw new Error("Result contains an unknown student or wrong class.");
-        if (!isMaster && !allowed.has(record.subjectId)) throw new Error("Result contains a subject this teacher is not assigned to.");
+        const student = students.find(s => s.studentId === record.studentId && s.classId === classItem.classId);
+        if (!student) throw new Error("Backup contains an unknown student or wrong class.");
       }
+
       if (Array.isArray(pkg.records?.attendance)) {
-        const existing = loadAttendance(), map = new Map(existing.map(r => [r.attendanceId || [r.classId,r.studentId,r.date].join("|"), r]));
-        pkg.records.attendance.forEach(r => map.set(r.attendanceId || [r.classId,r.studentId,r.date].join("|"), { ...r, schoolId: school.schoolId }));
+        const existing = loadAttendance();
+        const map = new Map(existing.map(r => [r.attendanceId || r.id || [r.classId, r.studentId, r.date].join("|"), r]));
+        pkg.records.attendance.forEach(r => map.set(r.attendanceId || r.id || [r.classId, r.studentId, r.date].join("|"), { ...r, schoolId: school.schoolId }));
         saveAttendance([...map.values()]);
       }
+
       if (Array.isArray(pkg.records?.results)) {
-        const existing = loadResultsRecords(), map = new Map(existing.map(r => [r.resultId || [r.studentId,r.subjectId,r.sessionId,r.termId].join("|"), r]));
-        pkg.records.results.forEach(r => map.set(r.resultId || [r.studentId,r.subjectId,r.sessionId,r.termId].join("|"), { ...r, schoolId: school.schoolId }));
+        const existing = loadResultsRecords();
+        const map = new Map(existing.map(r => [r.resultId || [r.studentId, r.subjectId, r.sessionId, r.termId].join("|"), r]));
+        pkg.records.results.forEach(r => map.set(r.resultId || [r.studentId, r.subjectId, r.sessionId, r.termId].join("|"), { ...r, schoolId: school.schoolId }));
         writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...map.values()]));
       }
-      message.textContent = "Teacher submission imported and accepted.";
-    } catch (error) { message.textContent = error?.message || "Could not import teacher submission."; }
+
+      message.textContent = "Backup imported and validated.";
+    } catch (error) {
+      message.textContent = error?.message || "Could not import backup.";
+    }
   };
 }
-
 function render(section) {
   const [heading] = labels[section] || [section, section];
   title.textContent = heading;
