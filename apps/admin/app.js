@@ -277,7 +277,7 @@ async function renderSchool() {
         <h2>School setup</h2>
         <p class="muted"></p>
       </div>
-      <button class="primary-button" id="edit-school">${school ? "Edit setup" : "Set up school"}</button>
+      <button class="primary-button" id="edit-school" type="button" hidden>${school ? "Edit setup" : "Set up school"}</button>
     </div>
 
     <div id="school-form"></div>
@@ -2113,7 +2113,7 @@ function renderSettings() {
       window.alert("Could not complete the reset. Please try again.");
       console.warn("SkulGo fresh-start reset failed", error);
     }
-  });});
+  });
 }
 
 function render(section) {
