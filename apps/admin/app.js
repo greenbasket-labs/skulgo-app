@@ -1285,8 +1285,11 @@ function loadGradeScale() {
 }
 
 function calculateResultTotal(record) {
-  const ca = Number.isFinite(Number(record.ca)) ? Number(record.ca) : undefined;
-  const exam = Number.isFinite(Number(record.exam)) ? Number(record.exam) : undefined;
+  const assessments = Array.isArray(record?.caAssessments) ? record.caAssessments : [];
+  const ca = assessments.length
+    ? assessments.reduce((sum, item) => sum + (Number.isFinite(Number(item.score)) ? Number(item.score) : 0), 0)
+    : (Number.isFinite(Number(record?.ca)) ? Number(record.ca) : undefined);
+  const exam = Number.isFinite(Number(record?.exam)) ? Number(record.exam) : undefined;
   const values = [ca, exam].filter((value) => value !== undefined);
   return values.length ? values.reduce((sum, value) => sum + value, 0) : undefined;
 }
@@ -1311,9 +1314,7 @@ function renderResults() {
   const termId = school.term?.termId || school.term?.name || "";
 
   page.innerHTML = `
-    <div class="section-heading">
-      <div><h2>Results</h2><p class="muted">View and enter student CA, exam, total and grade for the current academic period.</p></div>
-    </div>
+    <div class="section-heading"><div><h2>Results</h2><p class="muted">View and enter student CA, exam, total and grade for the current academic period.</p></div></div>
     <form class="form-card" id="results-selector">
       <div class="form-grid">
         <label>Class<select name="classId" required><option value="">Select class</option>${classes.map((item) => `<option value="${escapeHtml(item.classId)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
@@ -1332,10 +1333,7 @@ function renderResults() {
     const subjectId = String(data.get("subjectId") || "");
     const selectedClass = classes.find((item) => item.classId === classId);
     const selectedSubject = subjects.find((item) => item.subjectId === subjectId);
-    if (!selectedClass || !selectedSubject) {
-      document.querySelector("#results-list").innerHTML = '<p class="empty">Select a class and subject.</p>';
-      return;
-    }
+    if (!selectedClass || !selectedSubject) return;
 
     const classStudents = students.filter((student) => student.classId === classId);
     const gradeScale = loadGradeScale();
@@ -1348,29 +1346,17 @@ function renderResults() {
       const label = kind === "ca" ? "CA" : "Exam";
       const defaultMax = kind === "ca" ? 20 : 60;
       page.innerHTML = `
-        <div class="section-heading">
-          <div><h2>Add ${label}</h2><p class="muted">${escapeHtml(selectedSubject.name)} · ${escapeHtml(selectedClass.name)}</p></div>
-          <button class="small-button" type="button" id="back-results">Back</button>
-        </div>
+        <div class="section-heading"><div><h2>Add ${label}</h2><p class="muted">${escapeHtml(selectedSubject.name)} · ${escapeHtml(selectedClass.name)}</p></div><button class="small-button" type="button" id="back-results">Back</button></div>
         <form class="form-card" id="admin-result-entry-form">
           <div class="form-grid">
             <label>${label} name<input name="name" value="${label === "CA" ? "CA 1" : "EXAM"}" required></label>
             <label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="${defaultMax}" required></label>
             <label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label>
           </div>
-          <div class="card">
-            <h3>Student Scores</h3>
-            <p class="muted">Enter one score for each student offering this subject.</p>
-            ${classStudents.length ? classStudents.map((student) => `
-              <div class="score-row">
-                <div class="score-student"><strong>${escapeHtml(student.name)}</strong></div>
-                <input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}">
-              </div>`).join("") : '<div class="empty">No students are enrolled in this class.</div>'}
+          <div class="card"><h3>Student Scores</h3><p class="muted">Enter one score for each student offering this subject.</p>
+            ${classStudents.length ? classStudents.map((student) => `<div class="score-row"><div class="score-student"><strong>${escapeHtml(student.name)}</strong></div><input name="score-${escapeHtml(student.studentId)}" type="number" min="0" step="0.01" placeholder="0 - ${defaultMax}" aria-label="${escapeHtml(label)} score for ${escapeHtml(student.name)}"></div>`).join("") : '<div class="empty">No students are enrolled in this class.</div>'}
           </div>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Save ${label} Scores</button>
-            <button class="small-button" type="button" id="cancel-admin-result-entry">Cancel</button>
-          </div>
+          <div class="form-actions"><button class="primary-button" type="submit">Save ${label} Scores</button><button class="small-button" type="button" id="cancel-admin-result-entry">Cancel</button></div>
           <p class="form-message" id="admin-result-entry-message"></p>
         </form>`;
 
@@ -1381,10 +1367,7 @@ function renderResults() {
         const d = new FormData(e.currentTarget);
         const maximumScore = Number(d.get("maximumScore"));
         const message = document.querySelector("#admin-result-entry-message");
-        if (!Number.isFinite(maximumScore) || maximumScore <= 0) {
-          message.textContent = "Maximum score must be greater than zero.";
-          return;
-        }
+        if (!Number.isFinite(maximumScore) || maximumScore <= 0) { message.textContent = "Maximum score must be greater than zero."; return; }
 
         const all = loadResultsRecords();
         const existing = new Map(all.filter(keyMatches).map((record) => [record.studentId, record]));
@@ -1392,46 +1375,46 @@ function renderResults() {
           const raw = d.get("score-" + student.studentId);
           if (raw === null || String(raw).trim() === "") continue;
           const score = Number(raw);
-          if (!Number.isFinite(score) || score < 0 || score > maximumScore) {
-            message.textContent = "Each score must be between 0 and the maximum score.";
-            return;
+          if (!Number.isFinite(score) || score < 0 || score > maximumScore) { message.textContent = "Each score must be between 0 and the maximum score."; return; }
+          const previous = existing.get(student.studentId) || {};
+          const record = { ...previous, resultId: previous.resultId || id("result"), schoolId: school.schoolId, classId, subjectId, studentId: student.studentId, sessionId, termId };
+          if (kind === "ca") {
+            const oldAssessments = Array.isArray(record.caAssessments) ? record.caAssessments : (record.ca !== undefined ? [{ name: record.caName || "CA 1", score: Number(record.ca), maximumScore: Number(record.caMaximum || 20), date: record.caDate || "" }] : []);
+            const name = String(d.get("name") || "CA").trim();
+            const next = oldAssessments.filter((item) => String(item.name || "") !== name);
+            next.push({ name, score, maximumScore, date: String(d.get("date") || "") });
+            record.caAssessments = next;
+            record.ca = next.reduce((sum, item) => sum + Number(item.score || 0), 0);
+            record.caName = next.map((item) => item.name).join(", ");
+            record.caMaximum = next.reduce((sum, item) => sum + Number(item.maximumScore || 0), 0);
+            record.caDate = String(d.get("date") || "");
+          } else {
+            record.exam = score; record.examName = String(d.get("name") || "EXAM").trim(); record.examMaximum = maximumScore; record.examDate = String(d.get("date") || "");
           }
-          const record = { ...(existing.get(student.studentId) || {}), resultId: existing.get(student.studentId)?.resultId || id("result"),
-            schoolId: school.schoolId, classId, subjectId, studentId: student.studentId, sessionId, termId };
-          record[kind] = score;
-          record[kind + "Name"] = String(d.get("name") || label).trim();
-          record[kind + "Maximum"] = maximumScore;
-          record[kind + "Date"] = String(d.get("date") || "");
           existing.set(student.studentId, record);
         }
-
         const untouched = all.filter((record) => !keyMatches(record));
         writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...untouched, ...existing.values()]));
         renderResults();
       };
     };
 
+    const assessmentSource = records[0]?.caAssessments || (records[0]?.ca !== undefined ? [{ name: records[0]?.caName || "CA 1", maximumScore: records[0]?.caMaximum || 20 }] : []);
+    const examExists = records.some((record) => record.exam !== undefined);
     document.querySelector("#results-list").innerHTML = `
-      <div class="section-heading"><div><h3>${escapeHtml(selectedClass.name)} — ${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(school.session.name)} — ${escapeHtml(school.term.name)}</p></div></div>
-      <div class="card">
-        <h3>Subject Results</h3>
-        <p class="muted">Admin can enter CA and Exam scores directly, or import scores submitted by the Teacher.</p>
-        <div class="form-actions">
-          <button type="button" class="primary-button" id="admin-add-ca">+ Add CA</button>
-          <button type="button" class="primary-button" id="admin-add-exam">+ Add Exam</button>
-        </div>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Student</th><th>Admission ID</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th></tr></thead>
-        <tbody>${classStudents.length ? classStudents.map((student) => {
+      <div class="section-heading"><div><h3>${escapeHtml(selectedSubject.name)}</h3><p class="muted">${escapeHtml(selectedClass.name)} · ${classStudents.length} students</p></div></div>
+      <div class="card"><h3>Subject role</h3><p>Admin — CA, exams and results for this subject.</p><div class="form-actions"><button class="primary-button" type="button" id="admin-add-ca">+ Add CA</button><button class="primary-button" type="button" id="admin-add-exam">${examExists ? "Open Exam" : "+ Add Exam"}</button></div></div>
+      <div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>
+        ${classStudents.length ? `<div class="student-results">${classStudents.map((student) => {
           const record = records.find((item) => item.studentId === student.studentId);
           const total = record ? calculateResultTotal(record) : undefined;
           const grade = calculateResultGrade(total, gradeScale);
-          return `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(student.admissionNumber || student.studentId || "N/A")}</td><td>${record?.ca ?? "N/A"}</td><td>${record?.exam ?? "N/A"}</td><td>${total ?? "N/A"}</td><td>${grade ?? "N/A"}</td></tr>`;
-        }).join("") : '<tr><td colspan="6" class="empty">No students are enrolled in this class.</td></tr>'}</tbody>
-      </table></div>
-      ${classStudents.length && !records.length ? '<p class="muted">No result records have been entered for this class and subject yet.</p>' : ""}
-      ${!gradeScale ? '<p class="muted">Grade scale is not configured, so the Grade column is shown as N/A.</p>' : ""}
+          const ca = record ? (Array.isArray(record.caAssessments) ? record.caAssessments.reduce((sum,item)=>sum+Number(item.score||0),0) : Number(record.ca||0)) : undefined;
+          return `<div class="student-result-row"><div class="student-result-main"><strong>${escapeHtml(student.name)}</strong></div><div class="result-number"><span class="result-label">CA</span><strong>${record ? ca : "—"}</strong><small>/ ${record?.caMaximum ?? "—"}</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>${record?.exam ?? "—"}</strong><small>/ ${record?.examMaximum ?? "—"}</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>${total ?? "—"}</strong><small>/ ${(Number(record?.caMaximum||0)+Number(record?.examMaximum||0)) || "—"}</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>${grade ?? "—"}</strong></div></div>`;
+        }).join("")}</div>` : '<div class="empty">No students are enrolled in this class.</div>'}
+      </div>
+      <div class="card"><h3>CA assessments</h3>${assessmentSource.length ? assessmentSource.map((a)=>`<div class="student-row"><div><strong>${escapeHtml(a.name || "CA")}</strong><div class="student-id">Maximum score: ${escapeHtml(a.maximumScore ?? "")}</div></div></div>`).join("") : '<div class="empty">No CA assessment yet.</div>'}</div>
+      <div class="card"><h3>Exam</h3>${examExists ? '<div class="student-row"><div><strong>EXAM</strong><div class="student-id">Maximum score: '+escapeHtml(records.find(r=>r.examMaximum)?.examMaximum || 60)+'</div></div></div>' : '<div class="empty">No Exam yet.</div>'}</div>
     `;
 
     document.querySelector("#admin-add-ca").onclick = () => renderEntry("ca");
