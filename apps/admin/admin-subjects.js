@@ -88,22 +88,32 @@
     const school = loadSchool(), subject = loadSubjects().find(x => x.schoolId === school?.schoolId && x.subjectId === subjectId), cls = loadClasses().find(x => x.schoolId === school?.schoolId && x.classId === classId);
     if (!school || !subject || !cls) return renderSubjects();
     const students = studentsFor(school, classId), records = recordsFor(school, classId, subjectId), assessments = caDefs(school, classId, subjectId), exam = examDef(school, classId, subjectId), scale = loadGradeScale();
+    const caMax = assessments.reduce((sum, a) => sum + Number(a.maximumScore || 0), 0);
+    const examMax = exam ? Number(exam.maximumScore || 0) : 0;
     page.innerHTML = `
-      <div class="section-heading"><div><h2>Subjects</h2><h3>${esc(subject.name)}</h3><p class="muted">${esc(cls.name)}</p></div><button class="small-button" id="admin-subject-back">Back</button></div>
-      <div class="card"><h3>Subject role</h3><p>Admin — CA, exams and results for this subject.</p><div class="form-actions"><button class="primary-button" id="admin-add-ca">+ Add CA</button><button class="primary-button" id="admin-open-exam">Open Exam</button></div></div>
+      <div class="section-heading"><div><h2>${esc(subject.name)}</h2><p class="muted">${esc(cls.name)} · ${students.length} students</p></div><button class="small-button" id="admin-subject-back">Back</button></div>
+      <div class="card"><h3>Subject role</h3><p>Admin — CA, exams and results for this subject.</p><div class="card-action"><button class="primary-button" id="admin-add-ca">+ Add CA</button> <button class="primary-button" id="admin-open-exam">${exam ? "Open Exam" : "+ Add Exam"}</button></div></div>
       <div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>
       ${students.length ? '<div class="student-results">'+students.map(st => {
-        const r=records.find(x=>x.studentId===st.studentId), ca=r ? (r.caAssessments||[]).reduce((n,a)=>n+Number(a.score||0),0) : undefined, camax=r ? (r.caAssessments||[]).reduce((n,a)=>n+Number(a.maximumScore||0),0) : undefined, total=r ? calculateResultTotal(r) : undefined, grade=calculateResultGrade(total,scale);
-        return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><span class="student-id">'+esc(st.studentId||"")+' · '+esc(st.sex||st.gender||"")+' · '+esc(st.status||"ACTIVE")+'</span></div><div class="result-number"><span class="result-label">CA</span><strong>'+(ca??"—")+'</strong><small>/ '+(camax??"—")+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+(r?.exam??"—")+'</strong><small>/ '+(r?.examMaximum??"—")+'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+(total??"—")+'</strong><small>/ '+((Number(camax||0)+Number(r?.examMaximum||0))||"—")+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+(grade??"—")+'</strong></div></div>';
-      }).join("")+'</div>' : '<div class="empty">No students are enrolled in this class.</div>'}
+        const r = records.find(x => x.studentId === st.studentId);
+        const ca = r ? (r.caAssessments || []).reduce((n,a) => n + Number(a.score || 0), 0) : 0;
+        const examEntered = r && r.exam !== undefined && r.exam !== null;
+        const examScore = examEntered ? Number(r.exam) : null;
+        const total = ca + (examEntered ? examScore : 0);
+        const overallMax = caMax + examMax;
+        const grade = !examEntered ? "—" : overallMax > 0 ? calculateResultGrade(total, scale) : "—";
+        return '<div class="student-result-row"><div class="student-result-main"><strong>'+esc(st.name)+'</strong><div class="student-id">'+esc(st.studentId||"")+' · '+esc(st.sex||st.gender||"")+' · '+esc(st.status||"ACTIVE")+'</div></div><div class="result-number"><span class="result-label">CA</span><strong>'+ca+'</strong><small>/ '+caMax+'</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>'+(examEntered?examScore:"—")+'</strong><small>'+ (examEntered?"/ "+examMax:"/ —") +'</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>'+total+'</strong><small>/ '+overallMax+'</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>'+grade+'</strong></div></div>';
+      }).join("")+'</div>' : '<div class="empty">No students assigned to this subject.</div>'}
       </div>
-      <div class="card"><h3>CA assessments</h3>${assessments.length ? assessments.map(a => '<div class="student-row"><div><strong>'+esc(a.name)+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+records.filter(r=>(r.caAssessments||[]).some(x=>x.name===a.name)).length+' scores</div></div><button class="small-button" data-admin-ca="'+esc(a.id)+'">Open</button></div>').join("") : '<div class="empty">No CA assessment yet.</div>'}</div>
-      <div class="card"><h3>Exam</h3>${exam ? '<div class="student-row"><div><strong>'+esc(exam.name||"EXAM")+'</strong><div class="student-id">Maximum score: '+esc(exam.maximumScore)+' · '+records.filter(r=>r.exam!==undefined).length+' scores</div></div><button class="small-button" id="admin-existing-exam">Open</button></div>' : '<div class="empty">No Exam yet.</div>'}</div>`;
-    document.querySelector("#admin-subject-back").onclick=renderSubjects;
-    document.querySelector("#admin-add-ca").onclick=()=>renderAdminAddCA(subjectId,classId);
-    document.querySelector("#admin-open-exam").onclick=()=>exam?renderAdminExam(subjectId,classId):renderAdminAddExam(subjectId,classId);
-    document.querySelector("#admin-existing-exam")?.addEventListener("click",()=>renderAdminExam(subjectId,classId));
-    document.querySelectorAll("[data-admin-ca]").forEach(b=>b.onclick=()=>renderAdminCA(b.dataset.adminCa,subjectId,classId));
+      <div class="card"><h3>CA assessments</h3>
+      ${assessments.length ? assessments.map(a => '<div class="student-row"><div><strong>'+esc(a.name)+'</strong><div class="student-id">Maximum score: '+esc(a.maximumScore)+' · '+records.filter(r=>(r.caAssessments||[]).some(x=>x.name===a.name)).length+' scores</div></div><button class="small-button" data-admin-ca="'+esc(a.id)+'">Open</button></div>').join("") : '<div class="empty">No CA assessment yet.</div>'}
+      ${exam ? '<div class="student-row"><div><strong>'+esc(exam.name||"EXAM")+'</strong><div class="student-id">Maximum score: '+esc(exam.maximumScore)+' · '+records.filter(r=>r.exam!==undefined).length+' scores</div></div><button class="small-button" id="admin-existing-exam">Open</button></div>' : '<div class="empty">No Exam yet.</div>'}
+      </div>`;
+    document.querySelector("#admin-subject-back").onclick = renderSubjects;
+    document.querySelector("#admin-add-ca").onclick = () => renderAdminAddCA(subjectId, classId);
+    document.querySelector("#admin-open-exam").onclick = () => exam ? renderAdminExam(subjectId, classId) : renderAdminAddExam(subjectId, classId);
+    document.querySelector("#admin-existing-exam")?.addEventListener("click", () => renderAdminExam(subjectId, classId));
+    document.querySelectorAll("[data-admin-ca]").forEach(b => b.onclick = () => renderAdminCA(b.dataset.adminCa, subjectId, classId));
   }
 
   function renderAdminAddCA(subjectId,classId) {
