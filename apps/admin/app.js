@@ -2418,7 +2418,9 @@ render("school");
       }
     `;
     document.head.appendChild(style);
-  })();\n\n  function renderAdminSubject(subjectId, classId) {
+  })();
+
+  function renderAdminSubject(subjectId, classId) {
     subjectWorkspace(true);
     const school = loadSchool(), subject = loadSubjects().find(x => x.schoolId === school?.schoolId && x.subjectId === subjectId), cls = loadClasses().find(x => x.schoolId === school?.schoolId && x.classId === classId);
     if (!school || !subject || !cls) return renderSubjects();
