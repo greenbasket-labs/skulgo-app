@@ -1307,7 +1307,12 @@ function getStudentResultStatus(student, subjects, records) {
   const requiredSubjects = getRequiredSubjectsForStudent(student, subjects);
   const completedSubjectIds = new Set(
     records
-      .filter((record) => record.studentId === student.studentId && Number.isFinite(Number(calculateResultTotal(record))))
+      .filter((record) =>
+        record.studentId === student.studentId &&
+        record.exam !== undefined &&
+        Number.isFinite(Number(record.exam)) &&
+        Number.isFinite(Number(calculateResultTotal(record)))
+      )
       .map((record) => record.subjectId)
   );
   const completed = requiredSubjects.filter((subject) => completedSubjectIds.has(subject.subjectId)).length;
