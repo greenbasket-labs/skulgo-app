@@ -347,11 +347,11 @@ function renderTransfer() {
     const results = [];
     for (const ca of (s.ca || [])) {
       const subjectId = localSubjectToSource.get(ca.subjectId) || ca.subjectId;
-      for (const score of (ca.scores || [])) results.push({ resultId:ca.id+":"+score.studentId, studentId:score.studentId, subjectId, ca:score.score, sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
+      for (const score of (ca.scores || [])) results.push({ resultId:ca.id+":"+score.studentId, studentId:score.studentId, subjectId, ca:score.score, caMaximum:Number(ca.maximumScore||0), caName:ca.name||"CA", caDate:ca.date||"", sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
     }
     for (const exam of (s.exams || [])) {
       const subjectId = localSubjectToSource.get(exam.subjectId) || exam.subjectId;
-      for (const score of (exam.scores || [])) results.push({ resultId:exam.id+":"+score.studentId, studentId:score.studentId, subjectId, exam:score.score, sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
+      for (const score of (exam.scores || [])) results.push({ resultId:exam.id+":"+score.studentId, studentId:score.studentId, subjectId, exam:score.score, examMaximum:Number(exam.maximumScore||0), examName:exam.name||"EXAM", examDate:exam.date||"", sessionId:s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:s.transfer?.term?.termId || s.transfer?.term?.name || "" });
     }
 
     const pkg = {
@@ -361,7 +361,14 @@ function renderTransfer() {
       school:{ schoolId:s.teacher.schoolId, session:s.transfer?.session || null, term:s.transfer?.term || null },
       teacher:{ teacherId:s.teacher.teacherId, name:s.teacher.name },
       class:{ classId:firstClass.sourceClassId || firstClass.id, name:firstClass.name },
-      subjects:s.subjects.filter(x => x.classId === firstClass.id).map(x => ({ subjectId:x.sourceSubjectId || x.id, id:x.sourceSubjectId || x.id, name:x.name, classId:firstClass.sourceClassId || firstClass.id })),
+      assignment:{ assignmentType:firstClass.role || "SUBJECT_TEACHER" },
+      subjects:s.subjects.filter(x => x.classId === firstClass.id).map(x => ({
+        subjectId:x.sourceSubjectId || x.id,
+        id:x.sourceSubjectId || x.id,
+        name:x.name,
+        classId:firstClass.sourceClassId || firstClass.id,
+        studentIds:[...(x.studentIds || [])]
+      })),
       records:{
         attendance:(s.attendance || []).filter(r => r.classId === firstClass.id).map(r => ({ ...r, classId:firstClass.sourceClassId || firstClass.id, sessionId:r.sessionId || s.transfer?.session?.sessionId || s.transfer?.session?.name || "", termId:r.termId || s.transfer?.term?.termId || s.transfer?.term?.name || "" })),
         results
