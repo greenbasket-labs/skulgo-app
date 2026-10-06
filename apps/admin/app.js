@@ -2212,7 +2212,7 @@ function renderTransfer() {
       '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF. SkulGo validates the school and reconciles missing or existing classes, students, subjects, assignments and records. Unrelated data is left alone.</p>' +
       '<input type="file" id="import-backup-file" accept="application/pdf,.pdf">' +
       '<div class="form-actions"><button type="button" class="primary-button" id="import-backup">Import Backup</button></div><p class="form-message" id="import-message"></p></div>' +
-    '</div>' +
+    '<\/div>';
   document.querySelector("#import-backup").onclick = async () => {
     const message = document.querySelector("#import-message");
     const input = document.querySelector("#import-backup-file");
