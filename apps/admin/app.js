@@ -643,6 +643,14 @@ function renderStudentsFromStore() {
 
     <div id="student-form"></div>
 
+    <h3>Pending Admissions</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Admission ID</th><th>Class</th><th>Gender</th><th>Action</th></tr></thead>
+        <tbody id="pending-admission-rows"></tbody>
+      </table>
+    </div>
+
     <h3>Student Records</h3>
     <div class="table-wrap">
       <table>
@@ -658,8 +666,16 @@ function renderStudentsFromStore() {
     return item ? item.name : classId;
   };
 
+  const pendingAdmissions = store.admissions.filter(
+    (admission) => admission.schoolId === school.schoolId && admission.status === "PENDING"
+  );
+
+  document.querySelector("#pending-admission-rows").innerHTML = pendingAdmissions.length
+    ? pendingAdmissions.map((admission) => `<tr><td>${escapeHtml(admission.applicantName)}</td><td>${escapeHtml(admission.admissionNumber || "—")}</td><td>${escapeHtml(className(admission.intendedClassId) || "—")}</td><td>${escapeHtml(admission.gender || "—")}</td><td><button type="button" class="small-button" data-approve="${escapeHtml(admission.admissionId)}">Approve Student</button></td></tr>`).join("")
+    : '<tr><td colspan="5" class="empty">No pending admissions.</td></tr>';
+
   document.querySelector("#student-rows").innerHTML = students.length
-    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "â")}</td><td>${escapeHtml(className(s.classId) || "â")}</td><td>${escapeHtml(s.gender || "â")}</td></tr>`).join("")
+    ? students.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.admissionNumber || "—")}</td><td>${escapeHtml(className(s.classId) || "—")}</td><td>${escapeHtml(s.gender || "—")}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">No students yet.</td></tr>';
 
 
@@ -731,10 +747,12 @@ function renderStudentsFromStore() {
   });
 
   document.querySelectorAll("[data-approve]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const next = loadStore();
-      const admission = next.admissions.find((a) => a.admissionId === button.dataset.approve && a.schoolId === school.schoolId);
-      if (!admission) return;
+      const admission = next.admissions.find(
+        (a) => a.admissionId === button.dataset.approve && a.schoolId === school.schoolId
+      );
+      if (!admission || admission.status !== "PENDING") return;
       const now = new Date().toISOString();
       const studentId = id("student");
       next.students.push({
@@ -745,14 +763,17 @@ function renderStudentsFromStore() {
         classId: admission.intendedClassId,
         admissionNumber: admission.admissionNumber,
         gender: admission.gender,
-        createdAt: now
+        status: "ACTIVE",
+        createdAt: now,
+        updatedAt: now
       });
       admission.status = "APPROVED";
       admission.studentId = studentId;
       admission.updatedAt = now;
-      saveStore(next).then(() => renderStudents());
+      await saveStore(next);
+      renderStudents();
     });
-  });
+  });  });
 }
 
 const ATTENDANCE_STORAGE_KEY = "skulgo.admin.attendance.v1";
