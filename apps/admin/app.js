@@ -1535,6 +1535,10 @@ function renderReportCard() {
 
   const classRanks = new Map();
   for (const classItem of classes) {
+    const classStudents = students.filter((student) => student.classId === classItem.classId);
+    const classComplete = classStudents.length > 0 && classStudents.every((student) => studentStats.get(student.studentId)?.complete);
+    if (!classComplete) continue;
+
     const classRanked = ranked.filter((item) => item.student.classId === classItem.classId);
     let position = 0;
     let previousAverage = null;
@@ -1546,15 +1550,20 @@ function renderReportCard() {
     });
   }
 
+  // School-wide positions are released only when every enrolled student in every class
+  // has completed all required subjects for the current session and term.
+  const schoolComplete = students.length > 0 && students.every((student) => studentStats.get(student.studentId)?.complete);
   const schoolRanks = new Map();
-  let schoolPosition = 0;
-  let previousSchoolAverage = null;
-  ranked.forEach((item, index) => {
-    const counted = index + 1;
-    if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = counted;
-    schoolRanks.set(item.student.studentId, { position: schoolPosition, total: ranked.length });
-    previousSchoolAverage = item.average;
-  });
+  if (schoolComplete) {
+    let schoolPosition = 0;
+    let previousSchoolAverage = null;
+    ranked.forEach((item, index) => {
+      const counted = index + 1;
+      if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = counted;
+      schoolRanks.set(item.student.studentId, { position: schoolPosition, total: ranked.length });
+      previousSchoolAverage = item.average;
+    });
+  }
 
   const ordinal = (value) => {
     const n = Number(value);
