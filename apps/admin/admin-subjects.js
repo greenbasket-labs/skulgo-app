@@ -52,7 +52,7 @@
   }
   function esc(v) { return escapeHtml(v); }
 
-  window.renderSubjects = function () {
+  window.renderAdminSubjects = function () {
     subjectWorkspace(false);
     const school = loadSchool();
     if (!school) { page.innerHTML = "<h2>Subjects</h2><p class='muted'>Set up the school before managing subjects.</p>"; return; }
@@ -269,6 +269,6 @@
   const subjectsNav = document.querySelector('[data-section="subjects"]');
   if (subjectsNav && !subjectsNav.dataset.adminSubjectWorkspaceBound) {
     subjectsNav.dataset.adminSubjectWorkspaceBound = "1";
-    subjectsNav.addEventListener("click", () => window.renderSubjects());
+    subjectsNav.addEventListener("click", () => window.renderAdminSubjects());
   }
 })();
