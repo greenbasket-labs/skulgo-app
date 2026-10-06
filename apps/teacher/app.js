@@ -291,7 +291,7 @@ function renderTransfer() {
   const s = state();
   page.innerHTML = '<div class="section-heading"><div><h2>Export / Import</h2><p class="muted">Move class and subject records by file. No live connection is required.</p></div></div>' +
     '<div class="cards"><div class="card"><h3>Import from Admin</h3><p>Class Master imports the full class. Subject Teacher imports the assigned subject and its students.</p><button class="primary-button" id="import-admin">Import class package</button><p class="form-message" id="import-message"></p></div>' +
-    '<div class="card"><h3>Export to Admin</h3><p>Export attendance, CA, exam and result records for the school Admin.</p><button class="primary-button" id="export-admin">Export teacher submission</button><p class="form-message" id="export-message"></p></div></div>';
+    '<div class="card"><h3>Export to Admin</h3><p>Export attendance, CA, exam and result records for the selected class.</p><label>Class<select id="export-class">'+s.classes.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join("")+'</select></label><div class="form-actions"><button class="primary-button" id="export-admin">Export teacher submission</button></div><p class="form-message" id="export-message"></p></div></div>';
 
   document.querySelector("#import-admin").onclick = async () => {
     const message = document.querySelector("#import-message");
@@ -340,8 +340,9 @@ function renderTransfer() {
   document.querySelector("#export-admin").onclick = () => {
     const message = document.querySelector("#export-message");
     if (!s.teacher?.teacherId || !s.teacher?.schoolId) { message.textContent = "Import your class package from Admin first."; return; }
-    const firstClass = s.classes[0];
-    if (!firstClass) { message.textContent = "Import a class package first."; return; }
+    const exportClassId = document.querySelector("#export-class")?.value || "";
+    const firstClass = s.classes.find(c => c.id === exportClassId);
+    if (!firstClass) { message.textContent = "Select a class to export."; return; }
 
     const localSubjectToSource = new Map(s.subjects.filter(x => x.classId === firstClass.id).map(x => [x.id, x.sourceSubjectId || x.id]));
     const results = [];
@@ -361,7 +362,7 @@ function renderTransfer() {
       school:{ schoolId:s.teacher.schoolId, session:s.transfer?.session || null, term:s.transfer?.term || null },
       teacher:{ teacherId:s.teacher.teacherId, name:s.teacher.name },
       class:{ classId:firstClass.sourceClassId || firstClass.id, name:firstClass.name },
-      assignment:{ assignmentType:firstClass.role || "SUBJECT_TEACHER" },
+      assignment:{ assignmentType:firstClass.role || "SUBJECT_TEACHER", subjectIds:s.subjects.filter(x => x.classId === firstClass.id).map(x => x.sourceSubjectId || x.id) },
       subjects:s.subjects.filter(x => x.classId === firstClass.id).map(x => ({
         subjectId:x.sourceSubjectId || x.id,
         id:x.sourceSubjectId || x.id,
