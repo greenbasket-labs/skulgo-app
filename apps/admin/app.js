@@ -2231,7 +2231,7 @@ function renderTransfer() {
   teacherMessage.id = "teacher-import-message";
   const importCard = document.createElement("div");
   importCard.className = "card";
-  importCard.innerHTML = '<h3>Teacher Submission</h3><p>Import a Teacher's completed subject records. SkulGo validates the school, class, teacher, subject and student identities, then merges results without duplicating existing records.</p>';
+  importCard.innerHTML = "<h3>Teacher Submission</h3><p>Import a Teacher's completed subject records. SkulGo validates the school, class, teacher, subject and student identities, then merges results without duplicating existing records.</p>";
   importCard.append(teacherInput, document.createElement("div"), teacherMessage);
   importCard.querySelector("div").appendChild(teacherButton);
   document.querySelector(".cards").appendChild(importCard);
