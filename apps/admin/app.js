@@ -10,6 +10,7 @@ const labels = {
   "report-card": ["Report Card", "Report Card"],
   "grade-band": ["Grade Band", "Grade Band"],
   settings: ["Settings", "Settings"],
+  transfer: ["Backup", "Backup"],
   fees: ["Fees", "Fees"],
   cashier: ["Cashier", "Cashier"],
   messaging: ["Messaging", "Messaging"],
@@ -2201,15 +2202,15 @@ function renderTransfer() {
   }
 
   page.innerHTML =
-    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Clone a class, section or whole school. Existing IDs are preserved so imported records can be reconciled without duplicating unrelated data.</p></div></div>' +
+    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Keep a secure copy of your school records for safekeeping and recovery.</p></div></div>' +
     '<div class="cards">' +
-      '<div class="card"><h3>Export Backup</h3><p>Choose the scope to clone. The package carries the school hierarchy, students, subjects, assignments, attendance and results.</p>' +
+      '<div class="card"><h3>Export Backup</h3><p>Create a backup of your school records.</p>' +
       '<form id="export-backup-form" class="form-card"><div class="form-grid">' +
-      '<label>Scope<select name="transferScope" required><option value="CLASS">Class</option><option value="SECTION">Section</option><option value="SCHOOL">Whole School</option></select></label>' +
+      '<label>Backup scope<select name="transferScope" required><option value="CLASS">Class</option><option value="SECTION">Section</option><option value="SCHOOL">Whole School</option></select></label>' +
       '<label id="backup-target-label">Class<select name="targetId" id="backup-target" required><option value="">Select class</option>' +
       classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
       '</select></label></div><div class="form-actions"><button class="primary-button">Export Backup</button></div><p class="form-message" id="export-message"></p></form></div>' +
-      '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF. SkulGo validates the school and reconciles missing or existing classes, students, subjects, assignments and records. Unrelated data is left alone.</p>' +
+      '<div class="card"><h3>Restore Backup</h3><p>Restore your school records from a backup file. Existing records are matched to prevent duplicates, and missing records are restored.</p>' +
       '<input type="file" id="import-backup-file" accept="application/pdf,.pdf">' +
       '<div class="form-actions"><button type="button" class="primary-button" id="import-backup">Import Backup</button></div><p class="form-message" id="import-message"></p></div>' +
     '<\/div>';
@@ -2223,7 +2224,7 @@ function renderTransfer() {
     }
     try {
       const pkg = await importBackupPdf(file, school, classes);
-      message.textContent = "Backup imported, normalized and merged safely for " + pkg.class.name + ".";
+      message.textContent = "Backup restored successfully for " + pkg.class.name + ".";
     } catch (error) {
       message.textContent = error?.message || "Could not import backup.";
     }
