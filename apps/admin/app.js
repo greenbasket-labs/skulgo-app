@@ -1189,7 +1189,6 @@ function renderAttendanceList(school, classId, date) {
 const RESULTS_STORAGE_KEY = "skulgo.admin.results.v1";
 const GRADE_SCALE_STORAGE_KEY = "skulgo.admin.grade-scale.v1";
 const REMARK_BANDS_STORAGE_KEY = "skulgo.admin.remark-bands.v1";
-const SCHOOL_RANKING_STORAGE_KEY = "skulgo.admin.school-ranking.v1";
 const STUDENT_REMARKS_STORAGE_KEY = "skulgo.admin.student-remarks.v1";
 const DEFAULT_REMARK_BANDS = [
   { label: "1", title: "Excellent", minimumAverage: 70, remark: "Outstanding performance. Keep reaching for greater heights." },
@@ -1230,21 +1229,6 @@ function getRemarkForAverage(average, remarkBands) {
   if (!Number.isFinite(Number(average)) || !remarkBands?.bands?.length) return null;
   return [...remarkBands.bands].sort((a,b) => Number(b.minimumAverage ?? 0) - Number(a.minimumAverage ?? 0))
     .find((band) => Number(average) >= Number(band.minimumAverage ?? 0)) || null;
-}
-
-function loadSchoolRankingLimit() {
-  try {
-    const parsed = JSON.parse(readStorage(SCHOOL_RANKING_STORAGE_KEY) || "null");
-    const limit = Number(parsed?.limit);
-    return Number.isInteger(limit) && limit >= 1 ? limit : 10;
-  } catch {
-    return 10;
-  }
-}
-
-function saveSchoolRankingLimit(limit) {
-  const value = Math.max(1, Math.floor(Number(limit) || 10));
-  writeStorage(SCHOOL_RANKING_STORAGE_KEY, JSON.stringify({ limit: value }));
 }
 
 function loadResultsRecords() {
@@ -1573,15 +1557,12 @@ function renderReportCard() {
   const schoolComplete = students.length > 0 && students.every((student) => studentStats.get(student.studentId)?.complete);
   const schoolRanks = new Map();
   if (schoolComplete) {
-    const schoolRankingLimit = loadSchoolRankingLimit();
     let schoolPosition = 0;
     let previousSchoolAverage = null;
     ranked.forEach((item, index) => {
       const counted = index + 1;
       if (previousSchoolAverage === null || item.average !== previousSchoolAverage) schoolPosition = counted;
-      if (schoolPosition <= schoolRankingLimit) {
-        schoolRanks.set(item.student.studentId, { position: schoolPosition, total: Math.min(schoolRankingLimit, ranked.length) });
-      }
+      schoolRanks.set(item.student.studentId, { position: schoolPosition, total: ranked.length });
       previousSchoolAverage = item.average;
     });
   }
@@ -2359,16 +2340,6 @@ function renderSettings() {
         </form>
       </div>
       <div class="card">
-        <h3>School Ranking</h3>
-        <p>Choose how many school-wide positions should be calculated across the whole school. Class ranking remains separate.</p>
-        <form id="school-ranking-form">
-          <label>Number of positions
-            <input name="limit" type="number" min="1" step="1" value="10" required>
-          </label>
-          <div class="form-actions"><button class="primary-button" type="submit">Save School Ranking</button></div>
-        </form>
-      </div>
-      <div class="card">
         <h3>Start Fresh</h3>
         <p>Remove SkulGo school data stored on this device and clear local safety snapshots. The application itself will not be deleted.</p>
         <button class="secondary-button" id="settings-reset-app" type="button">Start Fresh</button>
@@ -2386,15 +2357,6 @@ function renderSettings() {
     })).sort((a,b) => Number(b.minimumAverage) - Number(a.minimumAverage));
     saveRemarkBands(next);
     event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>Remark bands saved successfully.</strong></div>');
-  });
-
-  document.querySelector("#school-ranking-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const limit = Number(data.get("limit"));
-    if (!Number.isInteger(limit) || limit < 1) return;
-    saveSchoolRankingLimit(limit);
-    event.currentTarget.insertAdjacentHTML("afterbegin", '<div class="notice"><strong>School ranking setting saved successfully.</strong></div>');
   });
 
   document.querySelector("#settings-edit-school").addEventListener("click", async () => {
