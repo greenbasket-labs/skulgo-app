@@ -1,4 +1,4 @@
-const CACHE = "skulgo-teacher-v3";
+const CACHE = "skulgo-teacher-v4";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./update-guard.js", "./manifest.webmanifest", "./version.json"];
 
 self.addEventListener("install", (event) => {
