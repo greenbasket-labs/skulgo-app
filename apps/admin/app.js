@@ -2359,16 +2359,46 @@ function renderTransfer() {
       const classId = String(pkg.class?.classId || "");
       const classItem = classes.find(c => c.classId === classId);
       if (!classItem) throw new Error("The submitted class is not registered in this Admin school.");
-      const teacher = assignments.find(a => a.teacherId === pkg.teacher.teacherId && a.classId === classId && a.status === "ACTIVE");
-      if (!teacher) throw new Error("This Teacher is not assigned to the submitted class.");
+      const classAssignments = assignments.filter(a => a.teacherId === pkg.teacher.teacherId && a.classId === classId && a.status === "ACTIVE");
+      if (!classAssignments.length) throw new Error("This Teacher is not assigned to the submitted class.");
+      const assignmentType = String(pkg.assignment?.assignmentType || "SUBJECT_TEACHER");
       const packageSubjects = Array.isArray(pkg.subjects) ? pkg.subjects : [];
       const validSubjects = new Set(subjects.filter(s => s.classId === classId).map(s => s.subjectId));
       const invalidSubject = packageSubjects.find(s => !validSubjects.has(String(s.subjectId)));
       if (invalidSubject) throw new Error("The submission contains a subject not registered for this class.");
+      if (assignmentType === "SUBJECT_TEACHER") {
+        const assignedSubjectIds = new Set(classAssignments.map(a => String(a.subjectId || "")));
+        const unauthorizedSubject = packageSubjects.find(s => !assignedSubjectIds.has(String(s.subjectId)));
+        if (unauthorizedSubject) throw new Error("This Teacher is not assigned to one of the submitted subjects.");
+      }
       const classStudentIds = new Set(students.filter(s => s.classId === classId).map(s => s.studentId));
       const incomingResults = Array.isArray(pkg.records?.results) ? pkg.records.results : [];
       const invalidStudent = incomingResults.find(r => !classStudentIds.has(String(r.studentId)));
       if (invalidStudent) throw new Error("The submission contains a student not registered in this class.");
+
+      const incomingAttendance = Array.isArray(pkg.records?.attendance) ? pkg.records.attendance : [];
+      const invalidAttendanceStudent = incomingAttendance.find(r => !classStudentIds.has(String(r.studentId)));
+      if (invalidAttendanceStudent) throw new Error("The submission contains attendance for a student not registered in this class.");
+      for (const attendance of incomingAttendance) {
+        if (String(attendance.classId || classId) !== classId) throw new Error("The submission contains attendance for another class.");
+      }
+
+      const existingAttendance = loadAttendance();
+      const attendanceKey = (r) => r.attendanceId || r.id || [r.schoolId, r.classId, r.studentId, r.date].join("|");
+      const attendanceMap = new Map(existingAttendance.map(r => [attendanceKey(r), r]));
+      for (const incoming of incomingAttendance) {
+        const normalized = {
+          ...(attendanceMap.get(attendanceKey(incoming)) || {}),
+          ...incoming,
+          schoolId: school.schoolId,
+          classId,
+          studentId: String(incoming.studentId),
+          sessionId: incoming.sessionId || school.session?.sessionId || school.session?.name || "",
+          termId: incoming.termId || school.term?.termId || school.term?.name || ""
+        };
+        attendanceMap.set(attendanceKey(normalized), normalized);
+      }
+      saveAttendance([...attendanceMap.values()]);
 
       const current = loadResultsRecords();
       const key = (r) => [r.schoolId, r.classId, r.subjectId, r.studentId, r.sessionId, r.termId].join("|");
