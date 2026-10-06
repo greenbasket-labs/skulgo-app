@@ -84,7 +84,7 @@
     document.querySelectorAll("[data-admin-open-subject]").forEach(b => b.onclick = () => renderAdminSubject(b.dataset.adminOpenSubject, b.dataset.adminOpenClass));
   };
 
-  function renderAdminSubject(subjectId, classId) {
+  function subjectWorkspace(on) { page.classList.toggle("admin-subject-workspace", !!on); }\n\n  function renderAdminSubject(subjectId, classId) {
     const school = loadSchool(), subject = loadSubjects().find(x => x.schoolId === school?.schoolId && x.subjectId === subjectId), cls = loadClasses().find(x => x.schoolId === school?.schoolId && x.classId === classId);
     if (!school || !subject || !cls) return renderSubjects();
     const students = studentsFor(school, classId), records = recordsFor(school, classId, subjectId), assessments = caDefs(school, classId, subjectId), exam = examDef(school, classId, subjectId), scale = loadGradeScale();
