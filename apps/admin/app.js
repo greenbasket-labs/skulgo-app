@@ -2215,6 +2215,86 @@ function renderTransfer() {
     message.textContent = "PDF backup created on this device.";
   };
 
+  const teacherInput = document.createElement("input");
+  teacherInput.type = "file";
+  teacherInput.id = "import-teacher-file";
+  teacherInput.accept = ".json,application/json";
+  const teacherButton = document.createElement("button");
+  teacherButton.type = "button";
+  teacherButton.className = "primary-button";
+  teacherButton.id = "import-teacher";
+  teacherButton.textContent = "Import Teacher Submission";
+  const teacherMessage = document.createElement("p");
+  teacherMessage.className = "form-message";
+  teacherMessage.id = "teacher-import-message";
+  const importCard = document.createElement("div");
+  importCard.className = "card";
+  importCard.innerHTML = '<h3>Teacher Submission</h3><p>Import a Teacher's completed subject records. SkulGo validates the school, class, teacher, subject and student identities, then merges results without duplicating existing records.</p>';
+  importCard.append(teacherInput, document.createElement("div"), teacherMessage);
+  importCard.querySelector("div").appendChild(teacherButton);
+  document.querySelector(".cards").appendChild(importCard);
+
+  teacherButton.onclick = async () => {
+    const message = document.querySelector("#teacher-import-message");
+    const file = document.querySelector("#import-teacher-file")?.files?.[0];
+    if (!file) { message.textContent = "Select a Teacher submission JSON first."; return; }
+    try {
+      const pkg = JSON.parse(await file.text());
+      if (pkg?.skulgoTransfer !== "v1" || pkg.direction !== "TEACHER_TO_ADMIN") throw new Error("This is not a valid Teacher submission.");
+      if (pkg.school?.schoolId !== school.schoolId) throw new Error("This submission belongs to another school.");
+      if (!pkg.teacher?.teacherId) throw new Error("Teacher ID is missing.");
+      const classId = String(pkg.class?.classId || "");
+      const classItem = classes.find(c => c.classId === classId);
+      if (!classItem) throw new Error("The submitted class is not registered in this Admin school.");
+      const teacher = assignments.find(a => a.teacherId === pkg.teacher.teacherId && a.classId === classId && a.status === "ACTIVE");
+      if (!teacher) throw new Error("This Teacher is not assigned to the submitted class.");
+      const packageSubjects = Array.isArray(pkg.subjects) ? pkg.subjects : [];
+      const validSubjects = new Set(subjects.filter(s => s.classId === classId).map(s => s.subjectId));
+      const invalidSubject = packageSubjects.find(s => !validSubjects.has(String(s.subjectId)));
+      if (invalidSubject) throw new Error("The submission contains a subject not registered for this class.");
+      const classStudentIds = new Set(students.filter(s => s.classId === classId).map(s => s.studentId));
+      const incomingResults = Array.isArray(pkg.records?.results) ? pkg.records.results : [];
+      const invalidStudent = incomingResults.find(r => !classStudentIds.has(String(r.studentId)));
+      if (invalidStudent) throw new Error("The submission contains a student not registered in this class.");
+
+      const current = loadResultsRecords();
+      const key = (r) => [r.schoolId, r.classId, r.subjectId, r.studentId, r.sessionId, r.termId].join("|");
+      const merged = new Map(current.map(r => [key(r), r]));
+      for (const incoming of incomingResults) {
+        const normalized = {
+          ...(merged.get(key({
+            schoolId: school.schoolId,
+            classId,
+            subjectId: incoming.subjectId,
+            studentId: incoming.studentId,
+            sessionId: incoming.sessionId || school.session?.sessionId || school.session?.name || "",
+            termId: incoming.termId || school.term?.termId || school.term?.name || ""
+          }) ) || {}),
+          ...incoming,
+          resultId: merged.get(key(incoming))?.resultId || id("result"),
+          schoolId: school.schoolId,
+          classId,
+          sessionId: incoming.sessionId || school.session?.sessionId || school.session?.name || "",
+          termId: incoming.termId || school.term?.termId || school.term?.name || ""
+        };
+        if (incoming.ca !== undefined) {
+          normalized.ca = Number(incoming.ca);
+          normalized.caMaximum = Number(incoming.caMaximum || normalized.caMaximum || 20);
+        }
+        if (incoming.exam !== undefined) {
+          normalized.exam = Number(incoming.exam);
+          normalized.examMaximum = Number(incoming.examMaximum || normalized.examMaximum || 60);
+        }
+        merged.set(key(normalized), normalized);
+      }
+      writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...merged.values()]));
+      message.textContent = "Teacher submission imported and merged safely.";
+      renderTransfer();
+    } catch (error) {
+      message.textContent = error?.message || "Could not import Teacher submission.";
+    }
+  };
+
   document.querySelector("#import-backup").onclick = async () => {
     const message = document.querySelector("#import-message");
     const input = document.querySelector("#import-backup-file");
