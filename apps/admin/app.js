@@ -773,7 +773,7 @@ function renderStudentsFromStore() {
       await saveStore(next);
       renderStudents();
     });
-  });  });
+  });
 }
 
 const ATTENDANCE_STORAGE_KEY = "skulgo.admin.attendance.v1";
