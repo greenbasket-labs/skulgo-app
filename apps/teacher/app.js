@@ -193,6 +193,16 @@ function studentExamMax(subjectId){
   .filter(a=>a.subjectId===subjectId)
   .reduce((sum,a)=>sum+(Number(a.maximumScore)||0),0);
 }
+function subjectResultStatus(subjectId, students){
+ const s=state();
+ const exams=(Array.isArray(s.exams)?s.exams:[]).filter(a=>a.subjectId===subjectId);
+ const examRows=new Map();
+ exams.forEach(exam=>(exam.scores||[]).forEach(row=>{
+   if(row.score!==undefined&&row.score!==null&&String(row.score).trim()!=="") examRows.set(row.studentId,true);
+ }));
+ const completed=students.filter(student=>examRows.has(student.studentId)).length;
+ return {completed,total:students.length,complete:students.length>0&&completed===students.length};
+}
 function renderSubject(subjectId){
  const s=state(),x=s.subjects.find(v=>v.id===subjectId);if(!x)return renderSubjects();
  const c=s.classes.find(v=>v.id===x.classId);
@@ -201,7 +211,7 @@ function renderSubject(subjectId){
  const exams=Array.isArray(s.exams)?s.exams.filter(v=>v.subjectId===x.id):[];
  const caMax=studentCAMax(x.id),examMax=studentExamMax(x.id);
  page.innerHTML='<div class="section-heading"><div><h2>'+esc(x.name)+'</h2><p class="muted">'+esc(x.className)+' · '+students.length+' students</p></div><button class="small-button" id="back-subjects">Back</button></div>'+
- '<div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button> <button class="primary-button" id="add-exam">+ Add Exam</button></div></div>'+
+ '<div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="add-ca">+ Add CA</button> <button class="primary-button" id="add-exam">+ Add Exam</button></div></div>'+'<div class="card"><h3>Result completion</h3><p class="muted">Exam scores completed: '+subjectResultStatus(x.id,students).completed+' / '+students.length+'</p><p class="muted">'+(subjectResultStatus(x.id,students).complete?'All student results are ready for Admin transfer.':'Finish the remaining exam scores before sending this subject to Admin.')+'</p></div>'+
  '<div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>'+
  (students.length?'<div class="student-results">'+students.map(st=>{
    const caScore=studentCA(x.id,st.studentId);
