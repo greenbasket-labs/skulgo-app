@@ -1,4 +1,4 @@
-const CACHE = "skulgo-admin-v4";
+const CACHE = "skulgo-admin-v5";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./update-guard.js", "./manifest.webmanifest", "./version.json"];
 
 self.addEventListener("install", (event) => {
