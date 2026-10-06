@@ -84,7 +84,107 @@
     document.querySelectorAll("[data-admin-open-subject]").forEach(b => b.onclick = () => renderAdminSubject(b.dataset.adminOpenSubject, b.dataset.adminOpenClass));
   };
 
-  function subjectWorkspace(on) { page.classList.toggle("admin-subject-workspace", !!on); }\n\n  function renderAdminSubject(subjectId, classId) {
+  function subjectWorkspace(on) {
+    page.classList.toggle("admin-subject-workspace", !!on);
+  }
+
+  (function installTeacherSubjectStyle() {
+    if (document.getElementById("admin-teacher-subject-style")) return;
+    const style = document.createElement("style");
+    style.id = "admin-teacher-subject-style";
+    style.textContent = `
+      #page.admin-subject-workspace {
+        max-width: 1100px;
+        margin: 28px auto;
+        padding: 0 24px 40px;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+      }
+      #page.admin-subject-workspace .section-heading {
+        display:flex; justify-content:space-between; align-items:flex-start;
+        gap:20px; margin-bottom:18px;
+      }
+      #page.admin-subject-workspace .section-heading h2,
+      #page.admin-subject-workspace .section-heading h3 { margin:0; }
+      #page.admin-subject-workspace .muted { color:#68758a; }
+      #page.admin-subject-workspace .card,
+      #page.admin-subject-workspace .form-card {
+        background:#fff; border:1px solid #e3e8ef; border-radius:14px;
+        padding:20px; margin-bottom:18px;
+      }
+      #page.admin-subject-workspace .card h3 { margin:0 0 5px; }
+      #page.admin-subject-workspace .card p { margin:4px 0; color:#68758a; }
+      #page.admin-subject-workspace .card-action { margin-top:14px; }
+      #page.admin-subject-workspace .primary-button,
+      #page.admin-subject-workspace .small-button {
+        border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font:inherit;
+      }
+      #page.admin-subject-workspace .primary-button { background:#172033; color:#fff; }
+      #page.admin-subject-workspace .small-button { background:#eef2f7; color:#172033; }
+      #page.admin-subject-workspace .student-results { margin-top:16px; border-top:1px solid #edf0f4; }
+      #page.admin-subject-workspace .student-result-row {
+        display:grid;
+        grid-template-columns:minmax(220px,1fr) repeat(3,minmax(90px,120px)) minmax(70px,90px);
+        align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid #edf0f4;
+      }
+      #page.admin-subject-workspace .student-result-row:last-child { border-bottom:0; }
+      #page.admin-subject-workspace .student-result-main { min-width:0; display:grid; gap:3px; }
+      #page.admin-subject-workspace .student-id { font-size:12px; color:#68758a; }
+      #page.admin-subject-workspace .result-number,
+      #page.admin-subject-workspace .result-grade { display:grid; gap:2px; text-align:center; }
+      #page.admin-subject-workspace .result-label {
+        font-size:11px; color:#68758a; font-weight:700; letter-spacing:.04em;
+      }
+      #page.admin-subject-workspace .result-number strong,
+      #page.admin-subject-workspace .result-grade strong { font-size:18px; }
+      #page.admin-subject-workspace .result-number small { font-size:11px; color:#68758a; }
+      #page.admin-subject-workspace .result-number.total strong,
+      #page.admin-subject-workspace .result-grade strong { font-size:20px; }
+      #page.admin-subject-workspace .student-row {
+        display:flex; align-items:center; justify-content:space-between;
+        gap:12px; padding:12px 0; border-bottom:1px solid #edf0f4;
+      }
+      #page.admin-subject-workspace .student-row:last-child { border-bottom:0; }
+      #page.admin-subject-workspace .empty { text-align:center; padding:35px; color:#68758a; }
+      #page.admin-subject-workspace .form-grid {
+        display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px;
+      }
+      #page.admin-subject-workspace .form-grid label { display:grid; gap:7px; font-size:13px; font-weight:600; }
+      #page.admin-subject-workspace .form-grid input,
+      #page.admin-subject-workspace .form-grid select {
+        width:100%; border:1px solid #ccd4df; border-radius:8px;
+        padding:11px 12px; background:#fff; font:inherit;
+      }
+      #page.admin-subject-workspace .form-actions { margin-top:18px; }
+      #page.admin-subject-workspace .score-row {
+        display:grid; grid-template-columns:minmax(0,1fr) 150px;
+        align-items:center; gap:16px; padding:14px 0; border-bottom:1px solid #edf0f4;
+      }
+      #page.admin-subject-workspace .score-student { display:grid; gap:3px; }
+      #page.admin-subject-workspace .score-input {
+        display:block!important; min-height:44px!important; visibility:visible!important;
+        opacity:1!important; color:#172033!important; background:#fff!important;
+        border:1px solid #8b98aa!important; border-radius:8px; padding:11px 12px; font:inherit;
+      }
+      @media(max-width:900px) {
+        #page.admin-subject-workspace .student-result-row {
+          grid-template-columns:minmax(180px,1fr) repeat(4,minmax(65px,1fr)); gap:8px;
+        }
+      }
+      @media(max-width:650px) {
+        #page.admin-subject-workspace { margin:20px auto; padding:0 16px 32px; }
+        #page.admin-subject-workspace .student-result-row { grid-template-columns:1fr 1fr 1fr 1fr 1fr; }
+        #page.admin-subject-workspace .student-result-main { grid-column:1/-1; }
+        #page.admin-subject-workspace .result-number,
+        #page.admin-subject-workspace .result-grade { padding:8px 4px; background:#f7f9fc; border-radius:8px; }
+        #page.admin-subject-workspace .form-grid { grid-template-columns:1fr; }
+        #page.admin-subject-workspace .score-row { grid-template-columns:1fr; }
+      }
+    `;
+    document.head.appendChild(style);
+  })();\n\n  function renderAdminSubject(subjectId, classId) {
+    subjectWorkspace(true);
     const school = loadSchool(), subject = loadSubjects().find(x => x.schoolId === school?.schoolId && x.subjectId === subjectId), cls = loadClasses().find(x => x.schoolId === school?.schoolId && x.classId === classId);
     if (!school || !subject || !cls) return renderSubjects();
     const students = studentsFor(school, classId), records = recordsFor(school, classId, subjectId), assessments = caDefs(school, classId, subjectId), exam = examDef(school, classId, subjectId), scale = loadGradeScale();
@@ -117,6 +217,7 @@
   }
 
   function renderAdminAddCA(subjectId,classId) {
+    subjectWorkspace(true);
     const school=loadSchool(), subject=loadSubjects().find(x=>x.subjectId===subjectId), cls=loadClasses().find(x=>x.classId===classId);
     if(!school||!subject||!cls)return renderSubjects();
     page.innerHTML=`<div class="section-heading"><div><h2>Add CA</h2><p class="muted">${esc(subject.name)} · ${esc(cls.name)}</p></div><button class="small-button" id="ca-back">Back</button></div><form class="form-card" id="ca-form"><div class="form-grid"><label>Assessment name<input name="name" placeholder="CA 1" required></label><label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="20" required></label><label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label></div><div class="form-actions"><button class="primary-button">Create CA</button></div><p class="form-message" id="ca-message"></p></form>`;
@@ -125,6 +226,7 @@
   }
 
   function renderAdminCA(assessmentId,subjectId,classId) {
+    subjectWorkspace(true);
     const school=loadSchool(),subject=loadSubjects().find(x=>x.subjectId===subjectId),cls=loadClasses().find(x=>x.classId===classId);if(!school||!subject||!cls)return renderSubjects();
     const c=context(school,classId,subjectId),a=caDefs(school,classId,subjectId).find(x=>x.id===assessmentId);if(!a)return renderAdminSubject(subjectId,classId);
     const students=studentsFor(school,classId),all=loadResultsRecords(),scoreFor=studentId=>all.find(r=>r.schoolId===school.schoolId&&r.classId===classId&&r.subjectId===subjectId&&r.studentId===studentId&&String(r.sessionId||"")===String(c.sessionId)&&String(r.termId||"")===String(c.termId))?.caAssessments?.find(x=>x.name===a.name)?.score;
@@ -135,6 +237,7 @@
   }
 
   function renderAdminEditCA(idValue,subjectId,classId) {
+    subjectWorkspace(true);
     const school=loadSchool(),a=caDefs(school,classId,subjectId).find(x=>x.id===idValue);if(!school||!a)return renderAdminSubject(subjectId,classId);
     page.innerHTML=`<div class="section-heading"><div><h2>Edit CA details</h2><p class="muted">Correct the existing assessment without creating another CA.</p></div><button class="small-button" id="edit-ca-back">Back</button></div><form class="form-card" id="edit-ca-form"><div class="form-grid"><label>Assessment name<input name="name" value="${esc(a.name)}" required></label><label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="${esc(a.maximumScore)}" required></label><label>Date<input name="date" type="date" value="${esc(a.date)}" required></label></div><div class="form-actions"><button class="primary-button">Save CA details</button></div><p class="form-message" id="edit-ca-message"></p></form>`;
     document.querySelector("#edit-ca-back").onclick=()=>renderAdminCA(a.id,subjectId,classId);
@@ -142,6 +245,7 @@
   }
 
   function renderAdminAddExam(subjectId,classId) {
+    subjectWorkspace(true);
     const school=loadSchool(),subject=loadSubjects().find(x=>x.subjectId===subjectId),cls=loadClasses().find(x=>x.classId===classId);if(!school||!subject||!cls)return renderSubjects();
     page.innerHTML=`<div class="section-heading"><div><h2>Add Exam</h2><p class="muted">${esc(subject.name)} · ${esc(cls.name)}</p></div><button class="small-button" id="exam-back">Back</button></div><form class="form-card" id="exam-form"><div class="form-grid"><label>Exam name<input name="name" value="EXAM" required></label><label>Maximum score<input name="maximumScore" type="number" min="1" step="1" value="60" required></label><label>Date<input name="date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label></div><div class="form-actions"><button class="primary-button">Create Exam &amp; Add Scores</button></div><p class="form-message" id="exam-message"></p></form>`;
     document.querySelector("#exam-back").onclick=()=>renderAdminSubject(subjectId,classId);
@@ -149,6 +253,7 @@
   }
 
   function renderAdminExam(subjectId,classId) {
+    subjectWorkspace(true);
     const school=loadSchool(),subject=loadSubjects().find(x=>x.subjectId===subjectId),cls=loadClasses().find(x=>x.classId===classId),exam=school&&examDef(school,classId,subjectId);if(!school||!subject||!cls)return renderSubjects();if(!exam)return renderAdminAddExam(subjectId,classId);
     const c=context(school,classId,subjectId),students=studentsFor(school,classId),all=loadResultsRecords(),scoreFor=idValue=>all.find(r=>r.schoolId===school.schoolId&&r.classId===classId&&r.subjectId===subjectId&&r.studentId===idValue&&String(r.sessionId||"")===String(c.sessionId)&&String(r.termId||"")===String(c.termId))?.exam;
     page.innerHTML=`<div class="section-heading"><div><h2>EXAM</h2><p class="muted">${esc(subject.name)} · ${esc(cls.name)} · Max ${esc(exam.maximumScore)} · ${esc(exam.date)}</p></div><button class="small-button" id="exam-detail-back">Back</button></div><div class="card"><h3>Exam</h3><p>This is the single exam record for this subject. Enter one score for each student.</p></div><form class="form-card" id="exam-scores"><h3>Enter exam scores</h3>${students.length?students.map(st=>'<div class="score-row"><div class="score-student"><strong>'+esc(st.name)+'</strong><span class="student-id">'+esc(st.studentId||"")+'</span></div><input class="score-input" name="score-'+esc(st.studentId)+'" type="number" min="0" max="'+esc(exam.maximumScore)+'" step="0.01" value="'+esc(scoreFor(st.studentId)??"")+'" placeholder="0 - '+esc(exam.maximumScore)+'"></div>').join(""):'<p class="empty">No students assigned to this subject.</p>'}<div class="form-actions"><button class="primary-button">Save Exam Scores</button></div><p class="form-message" id="exam-score-message"></p></form>`;
