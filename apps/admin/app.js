@@ -2261,21 +2261,20 @@ function renderTransfer() {
       const key = (r) => [r.schoolId, r.classId, r.subjectId, r.studentId, r.sessionId, r.termId].join("|");
       const merged = new Map(current.map(r => [key(r), r]));
       for (const incoming of incomingResults) {
-        const normalized = {
-          ...(merged.get(key({
-            schoolId: school.schoolId,
-            classId,
-            subjectId: incoming.subjectId,
-            studentId: incoming.studentId,
-            sessionId: incoming.sessionId || school.session?.sessionId || school.session?.name || "",
-            termId: incoming.termId || school.term?.termId || school.term?.name || ""
-          }) ) || {}),
-          ...incoming,
-          resultId: merged.get(key(incoming))?.resultId || id("result"),
+        const normalizedIdentity = {
           schoolId: school.schoolId,
           classId,
+          subjectId: incoming.subjectId,
+          studentId: incoming.studentId,
           sessionId: incoming.sessionId || school.session?.sessionId || school.session?.name || "",
           termId: incoming.termId || school.term?.termId || school.term?.name || ""
+        };
+        const existing = merged.get(key(normalizedIdentity));
+        const normalized = {
+          ...(existing || {}),
+          ...incoming,
+          resultId: existing?.resultId || id("result"),
+          ...normalizedIdentity
         };
         if (incoming.ca !== undefined) {
           normalized.ca = Number(incoming.ca);
