@@ -53,6 +53,7 @@
   function esc(v) { return escapeHtml(v); }
 
   window.renderSubjects = function () {
+    subjectWorkspace(false);
     const school = loadSchool();
     if (!school) { page.innerHTML = "<h2>Subjects</h2><p class='muted'>Set up the school before managing subjects.</p>"; return; }
     const subjects = loadSubjects().filter(x => x.schoolId === school.schoolId && x.status === "ACTIVE");
