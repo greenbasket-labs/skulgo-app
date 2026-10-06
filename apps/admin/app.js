@@ -1513,7 +1513,9 @@ function renderReportCard() {
 
   const studentStats = new Map();
   for (const student of students) {
-    const studentRecords = records.filter((record) => record.studentId === student.studentId);
+    const requiredSubjects = getRequiredSubjectsForStudent(student, subjects);
+    const requiredSubjectIds = new Set(requiredSubjects.map((subject) => subject.subjectId));
+    const studentRecords = records.filter((record) => record.studentId === student.studentId && requiredSubjectIds.has(record.subjectId));
     const percentages = studentRecords.map((record) => calculateResultPercentage(record)).filter((value) => Number.isFinite(value));
     const status = getStudentResultStatus(student, subjects, records);
     const average = percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : 0;
