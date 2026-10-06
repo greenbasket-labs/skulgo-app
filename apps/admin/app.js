@@ -2181,6 +2181,25 @@ function renderTransfer() {
   const assignments = loadAssignments().filter(a => a.schoolId === school.schoolId && a.status === "ACTIVE");
   const students = loadStore().students.filter(s => s.schoolId === school.schoolId);
 
+  const teachers = loadTeachers().filter(t => t.schoolId === school.schoolId && t.status === "ACTIVE");
+  const teacherAssignments = assignments.filter(a => a.teacherId && a.classId);
+
+  function teacherName(teacherId) {
+    return teachers.find(t => t.teacherId === teacherId)?.name || teacherId;
+  }
+
+  function downloadTeacherPackage(filename, payload) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   page.innerHTML =
     '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Clone a class, section or whole school. Existing IDs are preserved so imported records can be reconciled without duplicating unrelated data.</p></div></div>' +
     '<div class="cards">' +
@@ -2193,7 +2212,123 @@ function renderTransfer() {
       '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF. SkulGo validates the school and reconciles missing or existing classes, students, subjects, assignments and records. Unrelated data is left alone.</p>' +
       '<input type="file" id="import-backup-file" accept="application/pdf,.pdf">' +
       '<div class="form-actions"><button type="button" class="primary-button" id="import-backup">Import Backup</button></div><p class="form-message" id="import-message"></p></div>' +
-    '</div>';
+    '</div>' +
+    '<div class="card" id="send-teacher-card"><h3>Send to Teacher</h3><p>Send the official class and student roster to an assigned Teacher. The Teacher receives the existing Student IDs and works offline on attendance, CA, exams and results.</p>' +
+      '<form id="send-teacher-form" class="form-card"><div class="form-grid">' +
+      '<label>Teacher assignment<select name="assignmentId" id="send-teacher-assignment" required><option value="">Select assignment</option>' +
+      teacherAssignments.map(a => {
+        const cls = classes.find(c => c.classId === a.classId);
+        const subject = a.assignmentType === "SUBJECT_TEACHER" ? subjects.find(s => s.subjectId === a.subjectId) : null;
+        if (!cls) return "";
+        const role = a.assignmentType === "CLASS_MASTER" ? "Class Master" : "Subject Teacher";
+        const detail = subject ? " · " + subject.name : "";
+        return '<option value="' + escapeHtml(a.assignmentId || a.id || "") + '">' + escapeHtml(teacherName(a.teacherId) + " · " + role + " · " + cls.name + detail) + '</option>';
+      }).join("") +
+      '</select></label></div><div class="form-actions"><button class="primary-button" type="submit">Create Teacher Package</button></div><p class="form-message" id="send-teacher-message"></p></form></div>';
+
+  document.querySelector("#send-teacher-form").onsubmit = (e) => {
+    e.preventDefault();
+    const message = document.querySelector("#send-teacher-message");
+    const assignmentId = String(new FormData(e.currentTarget).get("assignmentId") || "");
+    const assignment = teacherAssignments.find(a => String(a.assignmentId || a.id || "") === assignmentId);
+    if (!assignment) {
+      message.textContent = "Select a valid Teacher assignment.";
+      return;
+    }
+
+    const classItem = classes.find(c => c.classId === assignment.classId);
+    const teacher = teachers.find(t => t.teacherId === assignment.teacherId);
+    if (!classItem || !teacher) {
+      message.textContent = "The selected Teacher or class is not available.";
+      return;
+    }
+
+    const classStudents = students.filter(s => s.classId === classItem.classId);
+    const isClassMaster = assignment.assignmentType === "CLASS_MASTER";
+    const assignedSubject = !isClassMaster
+      ? subjects.find(s => s.subjectId === assignment.subjectId && s.classId === classItem.classId)
+      : null;
+
+    if (!isClassMaster && !assignedSubject) {
+      message.textContent = "The assigned subject is not registered for this class.";
+      return;
+    }
+
+    const packageSubjects = isClassMaster
+      ? subjects.filter(s => s.classId === classItem.classId)
+      : [assignedSubject];
+
+    const allowedStudentIds = isClassMaster
+      ? new Set(classStudents.map(s => s.studentId))
+      : new Set(
+          (Array.isArray(assignedSubject.studentIds) && assignedSubject.studentIds.length
+            ? assignedSubject.studentIds
+            : classStudents.map(s => s.studentId))
+        );
+
+    const packageStudents = classStudents.filter(s => allowedStudentIds.has(s.studentId));
+
+    const pkg = {
+      skulgoTransfer: "v1",
+      direction: "ADMIN_TO_TEACHER",
+      packageType: "TEACHER_CLASS",
+      exportedAt: new Date().toISOString(),
+      school: {
+        schoolId: school.schoolId,
+        name: school.name,
+        session: school.session,
+        term: school.term,
+        schoolSections: school.schoolSections || []
+      },
+      teacher: {
+        teacherId: teacher.teacherId,
+        name: teacher.name,
+        schoolId: school.schoolId
+      },
+      class: {
+        classId: classItem.classId,
+        name: classItem.name,
+        sectionId: classItem.sectionId || null,
+        sectionName: classItem.sectionName || null,
+        schoolId: school.schoolId
+      },
+      assignment: {
+        assignmentId: assignment.assignmentId || assignment.id || null,
+        assignmentType: assignment.assignmentType || "SUBJECT_TEACHER",
+        teacherId: assignment.teacherId,
+        classId: assignment.classId,
+        subjectId: assignment.subjectId || null
+      },
+      students: packageStudents.map(student => ({
+        studentId: student.studentId,
+        schoolId: school.schoolId,
+        classId: classItem.classId,
+        name: student.name,
+        gender: student.gender || student.sex || "",
+        status: student.status || "ACTIVE"
+      })),
+      subjects: packageSubjects.map(subject => ({
+        subjectId: subject.subjectId,
+        schoolId: school.schoolId,
+        classId: classItem.classId,
+        name: subject.name,
+        status: subject.status || "ACTIVE",
+        studentIds: Array.isArray(subject.studentIds) && subject.studentIds.length
+          ? subject.studentIds.filter(studentId => allowedStudentIds.has(studentId))
+          : packageStudents.map(student => student.studentId)
+      }))
+    };
+
+    if (!pkg.students.length) {
+      message.textContent = "No students are registered in this Teacher's class/subject.";
+      return;
+    }
+
+    const safeTeacher = String(teacher.name || teacher.teacherId).replace(/[^a-z0-9]+/gi, "-");
+    const safeClass = String(classItem.name || classItem.classId).replace(/[^a-z0-9]+/gi, "-");
+    downloadTeacherPackage("skulgo-teacher-" + safeTeacher + "-" + safeClass + ".json", pkg);
+    message.textContent = "Teacher package created. Send this JSON file to the Teacher.";
+  };
 
   const scopeSelect = document.querySelector("#export-backup-form select[name=transferScope]");
   const targetSelect = document.querySelector("#backup-target");
