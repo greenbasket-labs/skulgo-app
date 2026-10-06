@@ -8,6 +8,7 @@ const labels = {
   attendance: ["Attendance", "Attendance"],
   results: ["Results", "Results"],
   "report-card": ["Report Card", "Report Card"],
+  "grade-band": ["Grade Band", "Grade Band"],
   settings: ["Settings", "Settings"],
   fees: ["Fees", "Fees"],
   cashier: ["Cashier", "Cashier"],
@@ -1239,13 +1240,26 @@ function loadResultsRecords() {
   }
 }
 
+const DEFAULT_GRADE_BANDS = [
+  { grade: "A", min: 70, max: 100 },
+  { grade: "B", min: 60, max: 69.99 },
+  { grade: "C", min: 50, max: 59.99 },
+  { grade: "D", min: 45, max: 49.99 },
+  { grade: "E", min: 40, max: 44.99 },
+  { grade: "F", min: 0, max: 39.99 }
+];
+
 function loadGradeScale() {
   try {
     const parsed = JSON.parse(readStorage(GRADE_SCALE_STORAGE_KEY) || "null");
-    return parsed && Array.isArray(parsed.bands) ? parsed : null;
-  } catch {
-    return null;
-  }
+    if (parsed && Array.isArray(parsed.bands) && parsed.bands.length) return parsed;
+  } catch {}
+  const bands = DEFAULT_GRADE_BANDS.map((band) => ({ ...band }));
+  return { bands };
+}
+
+function saveGradeScale(bands) {
+  writeStorage(GRADE_SCALE_STORAGE_KEY, JSON.stringify({ bands }));
 }
 
 function calculateResultTotal(record) {
@@ -1258,10 +1272,57 @@ function calculateResultTotal(record) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) : undefined;
 }
 
-function calculateResultGrade(total, scale) {
+function calculateResultGrade(total, scale, maximumTotal = 100) {
   if (total === undefined || !scale?.bands?.length) return undefined;
+
+  // New Grade Band format: percentage ranges A–F.
+  if (scale.bands.every((band) => band.grade !== undefined)) {
+    const maximum = Number(maximumTotal) > 0 ? Number(maximumTotal) : 100;
+    const percentage = (Number(total) / maximum) * 100;
+    return scale.bands.find((band) => percentage >= Number(band.min) && percentage <= Number(band.max))?.grade;
+  }
+
+  // Backward compatibility for older imported grade-scale records.
   const bands = [...scale.bands].sort((a, b) => Number(a.minimumTotal) - Number(b.minimumTotal));
   return bands.find((band) => total >= Number(band.minimumTotal) && total <= Number(band.maximumTotal))?.label;
+}
+
+function renderGradeBand() {
+  const scale = loadGradeScale();
+  page.innerHTML = '<div class="section-heading"><div><h2>Grade Band</h2><p class="muted">Default grading bands for this school. Change the minimum and maximum percentage as needed.</p></div></div>' +
+    '<form class="form-card" id="grade-band-form"><div class="grade-band-grid">' +
+    scale.bands.map((band, i) => {
+      const grade = band.grade ?? band.label ?? "";
+      const min = band.min ?? band.minimumTotal ?? 0;
+      const max = band.max ?? band.maximumTotal ?? 100;
+      return '<div class="grade-band-row"><strong>' + escapeHtml(grade) + '</strong>' +
+        '<input name="min-' + i + '" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(min) + '" aria-label="Minimum percentage for ' + escapeHtml(grade) + '">' +
+        '<span>to</span>' +
+        '<input name="max-' + i + '" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(max) + '" aria-label="Maximum percentage for ' + escapeHtml(grade) + '">' +
+        '</div>';
+    }).join("") +
+    '</div><div class="form-actions"><button class="primary-button">Save Grade Band</button><button type="button" class="small-button" id="reset-grade-band">Reset Default</button></div><p class="form-message" id="grade-band-message"></p></form>';
+
+  document.querySelector("#grade-band-form").onsubmit = (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const bands = scale.bands.map((band, i) => ({
+      grade: band.grade ?? band.label,
+      min: Number(data.get("min-" + i)),
+      max: Number(data.get("max-" + i))
+    }));
+    if (bands.some((band) => !Number.isFinite(band.min) || !Number.isFinite(band.max) || band.min < 0 || band.max > 100 || band.min > band.max)) {
+      document.querySelector("#grade-band-message").textContent = "Each band must be between 0 and 100, with minimum not above maximum.";
+      return;
+    }
+    saveGradeScale(bands);
+    document.querySelector("#grade-band-message").textContent = "Grade band saved.";
+  };
+
+  document.querySelector("#reset-grade-band").onclick = () => {
+    saveGradeScale(DEFAULT_GRADE_BANDS.map((band) => ({ ...band })));
+    renderGradeBand();
+  };
 }
 
 function renderResults() {
@@ -1372,7 +1433,7 @@ function renderResults() {
         ${classStudents.length ? `<div class="student-results">${classStudents.map((student) => {
           const record = records.find((item) => item.studentId === student.studentId);
           const total = record ? calculateResultTotal(record) : undefined;
-          const grade = calculateResultGrade(total, gradeScale);
+          const grade = calculateResultGrade(total, gradeScale, (Number(record?.caMaximum || 0) + Number(record?.examMaximum || 0)) || 100);
           const ca = record ? (Array.isArray(record.caAssessments) ? record.caAssessments.reduce((sum,item)=>sum+Number(item.score||0),0) : Number(record.ca||0)) : undefined;
           return `<div class="student-result-row"><div class="student-result-main"><strong>${escapeHtml(student.name)}</strong></div><div class="result-number"><span class="result-label">CA</span><strong>${record ? ca : "—"}</strong><small>/ ${record?.caMaximum ?? "—"}</small></div><div class="result-number"><span class="result-label">EXAM</span><strong>${record?.exam ?? "—"}</strong><small>/ ${record?.examMaximum ?? "—"}</small></div><div class="result-number total"><span class="result-label">TOTAL</span><strong>${total ?? "—"}</strong><small>/ ${(Number(record?.caMaximum||0)+Number(record?.examMaximum||0)) || "—"}</small></div><div class="result-grade"><span class="result-label">GRADE</span><strong>${grade ?? "—"}</strong></div></div>`;
         }).join("")}</div>` : '<div class="empty">No students are enrolled in this class.</div>'}
@@ -1625,7 +1686,7 @@ function renderReportCard() {
         subject: subjectsById.get(record.subjectId)?.name || record.subjectName || "Subject",
         exam: record.exam ?? "N/A",
         total: total ?? "N/A",
-        grade: calculateResultGrade(total, gradeScale) || "N/A"
+        grade: calculateResultGrade(total, gradeScale, (Number(record?.caMaximum || 0) + Number(record?.examMaximum || 0)) || 100) || "N/A"
       };
     });
 
@@ -2216,6 +2277,8 @@ function render(section) {
     renderResults();
   } else if (section === "report-card") {
     renderReportCard();
+  } else if (section === "grade-band") {
+    renderGradeBand();
   } else if (section === "transfer") {
     renderTransfer();
   } else if (section === "settings") {
