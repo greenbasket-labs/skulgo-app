@@ -1972,51 +1972,70 @@ function decodeBackupPayload(encoded) {
 }
 
 function normalizeBackupPayload(pkg) {
+  const legacyClass = pkg.class && pkg.class.classId ? {
+    classId: String(pkg.class.classId || "").trim(),
+    name: String(pkg.class.name || "").trim(),
+    sectionId: pkg.class.sectionId || null
+  } : null;
+  const classes = Array.isArray(pkg.classes)
+    ? pkg.classes.map(item => ({
+        ...item,
+        classId: String(item.classId || "").trim(),
+        name: String(item.name || "").trim(),
+        sectionId: item.sectionId || null,
+        schoolId: String(item.schoolId || pkg.school?.schoolId || "").trim()
+      })).filter(item => item.classId && item.name)
+    : (legacyClass ? [legacyClass] : []);
+
   return {
     ...pkg,
+    transferScope: String(pkg.transferScope || (legacyClass ? "CLASS" : "SCHOOL")).toUpperCase(),
     school: {
       schoolId: String(pkg.school?.schoolId || ""),
       name: String(pkg.school?.name || ""),
       session: pkg.school?.session || null,
-      term: pkg.school?.term || null
+      term: pkg.school?.term || null,
+      schoolSections: Array.isArray(pkg.school?.schoolSections) ? pkg.school.schoolSections : []
     },
-    class: {
-      classId: String(pkg.class?.classId || ""),
-      name: String(pkg.class?.name || ""),
-      sectionId: pkg.class?.sectionId || null
-    },
+    class: legacyClass || classes[0] || { classId: "", name: "", sectionId: null },
+    classes,
     students: Array.isArray(pkg.students) ? pkg.students.map(student => ({
       ...student,
       studentId: String(student.studentId || "").trim(),
       name: String(student.name || "").trim(),
       gender: String(student.gender || student.sex || "").trim(),
       status: String(student.status || "ACTIVE").trim(),
-      classId: String(student.classId || pkg.class?.classId || "").trim()
-    })).filter(student => student.studentId && student.name) : [],
+      schoolId: String(student.schoolId || pkg.school?.schoolId || "").trim(),
+      classId: String(student.classId || "").trim()
+    })).filter(student => student.studentId && student.name && student.classId) : [],
     subjects: Array.isArray(pkg.subjects) ? pkg.subjects.map(subject => ({
       ...subject,
       subjectId: String(subject.subjectId || "").trim(),
       name: String(subject.name || "").trim(),
-      classId: String(subject.classId || pkg.class?.classId || "").trim(),
+      schoolId: String(subject.schoolId || pkg.school?.schoolId || "").trim(),
+      classId: String(subject.classId || "").trim(),
       status: String(subject.status || "ACTIVE").trim(),
       studentIds: Array.isArray(subject.studentIds) ? subject.studentIds.map(String) : []
-    })).filter(subject => subject.subjectId && subject.name) : [],
+    })).filter(subject => subject.subjectId && subject.name && subject.classId) : [],
     assignments: Array.isArray(pkg.assignments) ? pkg.assignments.map(assignment => ({
       ...assignment,
       assignmentId: assignment.assignmentId || assignment.id || null,
       teacherId: assignment.teacherId ? String(assignment.teacherId) : null,
       subjectId: assignment.subjectId ? String(assignment.subjectId) : null,
-      classId: String(assignment.classId || pkg.class?.classId || "").trim()
+      schoolId: String(assignment.schoolId || pkg.school?.schoolId || "").trim(),
+      classId: String(assignment.classId || "").trim()
     })).filter(assignment => assignment.classId) : [],
     records: {
       attendance: Array.isArray(pkg.records?.attendance) ? pkg.records.attendance.map(record => ({
         ...record,
-        classId: String(record.classId || pkg.class?.classId || "").trim(),
+        schoolId: String(record.schoolId || pkg.school?.schoolId || "").trim(),
+        classId: String(record.classId || "").trim(),
         studentId: String(record.studentId || "").trim()
       })).filter(record => record.classId && record.studentId) : [],
       results: Array.isArray(pkg.records?.results) ? pkg.records.results.map(record => ({
         ...record,
-        classId: String(record.classId || pkg.class?.classId || "").trim(),
+        schoolId: String(record.schoolId || pkg.school?.schoolId || "").trim(),
+        classId: String(record.classId || "").trim(),
         studentId: String(record.studentId || "").trim()
       })).filter(record => record.classId && record.studentId) : []
     }
@@ -2029,36 +2048,49 @@ async function importBackupPdf(file, school, classes) {
   if (!chunks.length) throw new Error("This PDF does not contain a SkulGo backup.");
 
   const pkg = normalizeBackupPayload(decodeBackupPayload(chunks.join("")));
-  if (pkg.skulgoTransfer !== "v1" || pkg.backupType !== "CLASS") {
+  if (pkg.skulgoTransfer !== "v1" || !["CLASS", "SECTION", "SCHOOL"].includes(pkg.transferScope)) {
     throw new Error("This is not a supported SkulGo backup.");
   }
   if (pkg.school.schoolId !== school.schoolId) {
     throw new Error("School ID does not match this school.");
   }
 
-  const classItem = classes.find(c => c.classId === pkg.class.classId);
-  if (!classItem) throw new Error("Class ID is not registered in this school.");
-
-  for (const student of pkg.students) {
-    if (student.classId !== classItem.classId) {
-      throw new Error("Backup contains a student assigned to the wrong class.");
+  const incomingClassIds = new Set(pkg.classes.map(item => item.classId));
+  if (pkg.transferScope === "CLASS") {
+    if (!pkg.class.classId || !incomingClassIds.has(pkg.class.classId)) {
+      throw new Error("Backup does not contain a valid class.");
     }
+  }
+  if (!pkg.classes.length) throw new Error("Backup does not contain any classes.");
+
+  const currentClasses = [...classes];
+  const classMap = new Map(currentClasses.map(item => [item.classId, item]));
+  for (const incoming of pkg.classes) {
+    const existing = classMap.get(incoming.classId);
+    if (existing && existing.schoolId !== school.schoolId) {
+      throw new Error("Class ID " + incoming.classId + " belongs to another school.");
+    }
+    classMap.set(incoming.classId, {
+      ...(existing || {}),
+      ...incoming,
+      schoolId: school.schoolId
+    });
+  }
+  saveClasses([...classMap.values()]);
+
+  const allowedClassIds = new Set(pkg.classes.map(item => item.classId));
+  for (const student of pkg.students) {
+    if (!allowedClassIds.has(student.classId)) throw new Error("Backup contains a student assigned to an unknown class.");
   }
   for (const subject of pkg.subjects) {
-    if (subject.classId !== classItem.classId) {
-      throw new Error("Backup contains a subject assigned to the wrong class.");
-    }
+    if (!allowedClassIds.has(subject.classId)) throw new Error("Backup contains a subject assigned to an unknown class.");
   }
   for (const assignment of pkg.assignments) {
-    if (assignment.classId !== classItem.classId) {
-      throw new Error("Backup contains an assignment assigned to the wrong class.");
-    }
+    if (!allowedClassIds.has(assignment.classId)) throw new Error("Backup contains an assignment assigned to an unknown class.");
   }
   for (const record of [...pkg.records.attendance, ...pkg.records.results]) {
-    if (record.classId !== classItem.classId) {
-      throw new Error("Backup contains a record assigned to the wrong class.");
-    }
-    if (!pkg.students.some(student => student.studentId === record.studentId)) {
+    if (!allowedClassIds.has(record.classId)) throw new Error("Backup contains a record assigned to an unknown class.");
+    if (!pkg.students.some(student => student.studentId === record.studentId && student.classId === record.classId)) {
       throw new Error("Backup contains a record for an unknown student.");
     }
   }
@@ -2067,21 +2099,24 @@ async function importBackupPdf(file, school, classes) {
   const existingStudents = new Map(store.students.map(student => [student.studentId, student]));
   for (const incoming of pkg.students) {
     const existing = existingStudents.get(incoming.studentId);
-    if (existing && existing.classId && existing.classId !== classItem.classId) {
+    if (existing && existing.schoolId === school.schoolId && existing.classId && existing.classId !== incoming.classId) {
       throw new Error("Student ID " + incoming.studentId + " already belongs to another class.");
+    }
+    if (existing && existing.schoolId && existing.schoolId !== school.schoolId) {
+      throw new Error("Student ID " + incoming.studentId + " belongs to another school.");
     }
     existingStudents.set(incoming.studentId, {
       ...(existing || {}),
       ...incoming,
-      schoolId: school.schoolId,
-      classId: classItem.classId
+      schoolId: school.schoolId
     });
   }
+
   const admissionsById = new Map(store.admissions.map(admission => [admission.studentId || admission.admissionNumber, admission]));
   for (const student of existingStudents.values()) {
-    if (student.schoolId === school.schoolId && student.classId === classItem.classId) {
-      const admission = admissionsById.get(student.studentId);
-      if (admission) admissionsById.set(student.studentId, { ...admission, ...student });
+    if (student.schoolId === school.schoolId && allowedClassIds.has(student.classId)) {
+      const admission = admissionsById.get(student.studentId) || admissionsById.get(student.admissionNumber);
+      if (admission) admissionsById.set(admission.studentId || admission.admissionNumber, { ...admission, ...student });
     }
   }
   await saveStore({ admissions: [...admissionsById.values()], students: [...existingStudents.values()] });
@@ -2089,10 +2124,13 @@ async function importBackupPdf(file, school, classes) {
   const existingSubjects = new Map(loadSubjects().map(subject => [subject.subjectId, subject]));
   for (const incoming of pkg.subjects) {
     const existing = existingSubjects.get(incoming.subjectId);
-    if (existing && existing.classId && existing.classId !== classItem.classId) {
-      throw new Error("Subject ID " + incoming.subjectId + " already belongs to another class.");
+    if (existing && existing.schoolId && existing.schoolId !== school.schoolId) {
+      throw new Error("Subject ID " + incoming.subjectId + " belongs to another school.");
     }
-    existingSubjects.set(incoming.subjectId, { ...(existing || {}), ...incoming, schoolId: school.schoolId, classId: classItem.classId });
+    if (existing && existing.classId && !allowedClassIds.has(existing.classId) && existing.classId !== incoming.classId) {
+      throw new Error("Subject ID " + incoming.subjectId + " is already attached to another class.");
+    }
+    existingSubjects.set(incoming.subjectId, { ...(existing || {}), ...incoming, schoolId: school.schoolId });
   }
   saveSubjects([...existingSubjects.values()]);
 
@@ -2102,28 +2140,28 @@ async function importBackupPdf(file, school, classes) {
   ]));
   for (const incoming of pkg.assignments) {
     const key = incoming.assignmentId || [incoming.teacherId, incoming.classId, incoming.subjectId, incoming.assignmentType].join("|");
-    existingAssignments.set(key, { ...(existingAssignments.get(key) || {}), ...incoming, schoolId: school.schoolId, classId: classItem.classId });
+    existingAssignments.set(key, { ...(existingAssignments.get(key) || {}), ...incoming, schoolId: school.schoolId });
   }
   saveAssignments([...existingAssignments.values()]);
 
   const existingAttendance = loadAttendance();
   const attendanceMap = new Map(existingAttendance.map(record => [
-    record.attendanceId || record.id || [record.classId, record.studentId, record.date].join("|"),
+    record.attendanceId || record.id || [record.schoolId, record.classId, record.studentId, record.date].join("|"),
     record
   ]));
   pkg.records.attendance.forEach(record => {
-    const key = record.attendanceId || record.id || [record.classId, record.studentId, record.date].join("|");
+    const key = record.attendanceId || record.id || [record.schoolId, record.classId, record.studentId, record.date].join("|");
     attendanceMap.set(key, { ...attendanceMap.get(key), ...record, schoolId: school.schoolId });
   });
   saveAttendance([...attendanceMap.values()]);
 
   const existingResults = loadResultsRecords();
   const resultsMap = new Map(existingResults.map(record => [
-    record.resultId || [record.studentId, record.subjectId, record.sessionId, record.termId].join("|"),
+    record.resultId || [record.schoolId, record.classId, record.studentId, record.subjectId, record.sessionId, record.termId].join("|"),
     record
   ]));
   pkg.records.results.forEach(record => {
-    const key = record.resultId || [record.studentId, record.subjectId, record.sessionId, record.termId].join("|");
+    const key = record.resultId || [record.schoolId, record.classId, record.studentId, record.subjectId, record.sessionId, record.termId].join("|");
     resultsMap.set(key, { ...resultsMap.get(key), ...record, schoolId: school.schoolId });
   });
   writeStorage(RESULTS_STORAGE_KEY, JSON.stringify([...resultsMap.values()]));
@@ -2144,77 +2182,150 @@ function renderTransfer() {
   const students = loadStore().students.filter(s => s.schoolId === school.schoolId);
 
   page.innerHTML =
-    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Export a class backup as PDF, or import a SkulGo backup PDF from this device. Imported data is normalized and merged safely.</p></div></div>' +
+    '<div class="section-heading"><div><h2>Backup</h2><p class="muted">Clone a class, section or whole school. Existing IDs are preserved so imported records can be reconciled without duplicating unrelated data.</p></div></div>' +
     '<div class="cards">' +
-      '<div class="card"><h3>Export Backup</h3><p>Choose a class and create its PDF backup. You can then share the file using WhatsApp, Gmail, Bluetooth, USB or any other option available on your device.</p>' +
-      '<form id="export-backup-form" class="form-card"><div class="form-grid"><label>Class<select name="classId" required><option value="">Select class</option>' +
+      '<div class="card"><h3>Export Backup</h3><p>Choose the scope to clone. The package carries the school hierarchy, students, subjects, assignments, attendance and results.</p>' +
+      '<form id="export-backup-form" class="form-card"><div class="form-grid">' +
+      '<label>Scope<select name="transferScope" required><option value="CLASS">Class</option><option value="SECTION">Section</option><option value="SCHOOL">Whole School</option></select></label>' +
+      '<label id="backup-target-label">Class<select name="targetId" id="backup-target" required><option value="">Select class</option>' +
       classes.map(c => '<option value="' + escapeHtml(c.classId) + '">' + escapeHtml(c.name) + '</option>').join("") +
       '</select></label></div><div class="form-actions"><button class="primary-button">Export Backup</button></div><p class="form-message" id="export-message"></p></form></div>' +
-      '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF from your device. SkulGo normalizes the data, validates identities, and merges it without deleting unrelated records.</p>' +
+      '<div class="card"><h3>Import Backup</h3><p>Pick a SkulGo backup PDF. SkulGo validates the school and reconciles missing or existing classes, students, subjects, assignments and records. Unrelated data is left alone.</p>' +
       '<input type="file" id="import-backup-file" accept="application/pdf,.pdf">' +
       '<div class="form-actions"><button type="button" class="primary-button" id="import-backup">Import Backup</button></div><p class="form-message" id="import-message"></p></div>' +
     '</div>';
 
+  const scopeSelect = document.querySelector("#export-backup-form select[name=transferScope]");
+  const targetSelect = document.querySelector("#backup-target");
+  const targetLabel = document.querySelector("#backup-target-label");
+  const sections = [...new Map(classes.map(item => [item.sectionId || item.sectionName, {
+    sectionId: item.sectionId || item.sectionName,
+    name: item.sectionName || item.sectionId || "Section"
+  }])).values()];
+
+  function drawBackupTargets() {
+    const scope = scopeSelect.value;
+    if (scope === "SCHOOL") {
+      targetLabel.style.display = "none";
+      targetSelect.required = false;
+      return;
+    }
+    targetLabel.style.display = "";
+    targetSelect.required = true;
+    if (scope === "SECTION") {
+      targetLabel.firstChild.textContent = "Section";
+      targetSelect.innerHTML = '<option value="">Select section</option>' +
+        sections.map(section => '<option value="' + escapeHtml(section.sectionId) + '">' + escapeHtml(section.name) + '</option>').join("");
+    } else {
+      targetLabel.firstChild.textContent = "Class";
+      targetSelect.innerHTML = '<option value="">Select class</option>' +
+        classes.map(item => '<option value="' + escapeHtml(item.classId) + '">' + escapeHtml(item.name) + '</option>').join("");
+    }
+  }
+  scopeSelect.addEventListener("change", drawBackupTargets);
+  drawBackupTargets();
+
   document.querySelector("#export-backup-form").onsubmit = (e) => {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
-    const classItem = classes.find(c => c.classId === String(d.get("classId")));
+    const transferScope = String(d.get("transferScope") || "CLASS");
+    const targetId = String(d.get("targetId") || "");
     const message = document.querySelector("#export-message");
-    if (!classItem) return;
+    const selectedClass = classes.find(item => item.classId === targetId);
+    const selectedSection = sections.find(item => item.sectionId === targetId);
+    const selectedClasses = transferScope === "SCHOOL"
+      ? classes
+      : transferScope === "SECTION"
+        ? classes.filter(item => (item.sectionId || item.sectionName) === targetId)
+        : (selectedClass ? [selectedClass] : []);
 
-    const classStudents = students.filter(s => s.classId === classItem.classId);
-    const classSubjects = subjects.filter(s => s.classId === classItem.classId);
-    const classAssignments = assignments.filter(a => a.classId === classItem.classId);
-    const attendance = loadAttendance().filter(r => r.classId === classItem.classId);
-    const results = loadResultsRecords().filter(r => r.classId === classItem.classId);
+    if (!selectedClasses.length) {
+      message.textContent = transferScope === "SCHOOL" ? "No classes are configured for this school." : "Select a valid backup scope.";
+      return;
+    }
+
+    const classIds = new Set(selectedClasses.map(item => item.classId));
+    const classStudents = students.filter(student => classIds.has(student.classId));
+    const classSubjects = subjects.filter(subject => classIds.has(subject.classId));
+    const classAssignments = assignments.filter(assignment => classIds.has(assignment.classId));
+    const attendance = loadAttendance().filter(record => classIds.has(record.classId));
+    const results = loadResultsRecords().filter(record => classIds.has(record.classId));
+
+    const payload = {
+      skulgoTransfer: "v1",
+      backupType: transferScope,
+      transferScope,
+      exportedAt: new Date().toISOString(),
+      school: {
+        schoolId: school.schoolId,
+        name: school.name,
+        session: school.session,
+        term: school.term,
+        schoolSections: school.schoolSections || []
+      },
+      classes: selectedClasses.map(item => ({
+        classId: item.classId,
+        name: item.name,
+        sectionId: item.sectionId || null,
+        sectionName: item.sectionName || null,
+        schoolId: school.schoolId
+      })),
+      class: selectedClasses.length === 1 ? {
+        classId: selectedClasses[0].classId,
+        name: selectedClasses[0].name,
+        sectionId: selectedClasses[0].sectionId || null
+      } : null,
+      section: transferScope === "SECTION" ? {
+        sectionId: selectedSection?.sectionId || targetId,
+        name: selectedSection?.name || targetId
+      } : null,
+      students: classStudents.map(student => ({
+        ...student,
+        schoolId: school.schoolId,
+        studentId: student.studentId,
+        name: student.name,
+        gender: student.gender || student.sex || "",
+        status: student.status || "ACTIVE",
+        classId: student.classId
+      })),
+      subjects: classSubjects.map(subject => ({
+        ...subject,
+        subjectId: subject.subjectId,
+        schoolId: school.schoolId,
+        classId: subject.classId,
+        status: subject.status || "ACTIVE",
+        studentIds: Array.isArray(subject.studentIds) ? subject.studentIds : []
+      })),
+      assignments: classAssignments.map(assignment => ({
+        ...assignment,
+        assignmentId: assignment.assignmentId || assignment.id || null,
+        teacherId: assignment.teacherId || null,
+        assignmentType: assignment.assignmentType || null,
+        subjectId: assignment.subjectId || null,
+        classId: assignment.classId,
+        schoolId: school.schoolId
+      })),
+      records: { attendance, results }
+    };
 
     const pdf = createBackupPdf(
       school,
-      classItem,
+      selectedClasses[0],
       classStudents,
       classSubjects,
       classAssignments,
       attendance,
       results,
-      {
-        skulgoTransfer: "v1",
-        backupType: "CLASS",
-        exportedAt: new Date().toISOString(),
-        school: { schoolId: school.schoolId, name: school.name, session: school.session, term: school.term },
-        class: { classId: classItem.classId, name: classItem.name, sectionId: classItem.sectionId || null },
-        students: classStudents.map(s => ({
-          ...s,
-          schoolId: school.schoolId,
-          studentId: s.studentId,
-          name: s.name,
-          gender: s.gender || s.sex || "",
-          status: s.status || "ACTIVE",
-          classId: s.classId
-        })),
-        subjects: classSubjects.map(s => ({
-          subjectId: s.subjectId,
-          name: s.name,
-          classId: s.classId,
-          status: s.status || "ACTIVE",
-          studentIds: Array.isArray(s.studentIds) ? s.studentIds : []
-        })),
-        assignments: classAssignments.map(a => ({
-          assignmentId: a.assignmentId || a.id || null,
-          teacherId: a.teacherId || null,
-          assignmentType: a.assignmentType || null,
-          subjectId: a.subjectId || null,
-          classId: a.classId
-        })),
-        records: {
-          attendance,
-          results
-        }
-      }
+      payload
     );
-
-    const filename = "skulgo-" + classItem.name.replace(/[^a-z0-9]+/gi, "-") + "-backup.pdf";
+    const scopeName = transferScope === "SCHOOL"
+      ? school.name
+      : transferScope === "SECTION"
+        ? (selectedSection?.name || "section")
+        : selectedClasses[0].name;
+    const filename = "skulgo-" + String(scopeName).replace(/[^a-z0-9]+/gi, "-") + "-" + transferScope.toLowerCase() + "-backup.pdf";
     downloadBackupPdf(filename, pdf);
-    message.textContent = "PDF backup created on this device.";
+    message.textContent = transferScope + " backup created on this device.";
   };
 
   const teacherInput = document.createElement("input");
