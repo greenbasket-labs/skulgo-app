@@ -193,7 +193,7 @@
     const examMax = exam ? Number(exam.maximumScore || 0) : 0;
     page.innerHTML = `
       <div class="section-heading"><div><h2>${esc(subject.name)}</h2><p class="muted">${esc(cls.name)} · ${students.length} students</p></div><button class="small-button" id="admin-subject-back">Back</button></div>
-      <div class="card"><h3>Subject role</h3><p>Admin — CA, exams and results for this subject.</p><div class="card-action"><button class="primary-button" id="admin-add-ca">+ Add CA</button> <button class="primary-button" id="admin-open-exam">${exam ? "Open Exam" : "+ Add Exam"}</button></div></div>
+      <div class="card"><h3>Subject role</h3><p>Subject Teacher — CA, exams and results for assigned students.</p><div class="card-action"><button class="primary-button" id="admin-add-ca">+ Add CA</button> <button class="primary-button" id="admin-open-exam">${exam ? "Open Exam" : "+ Add Exam"}</button></div></div>
       <div class="card"><h3>Students</h3><p class="muted">CA is calculated from every CA added for this subject. Add CA1, CA2, CA3, CA4 or more — the CA total updates automatically.</p>
       ${students.length ? '<div class="student-results">'+students.map(st => {
         const r = records.find(x => x.studentId === st.studentId);
@@ -263,4 +263,12 @@
   }
 
   window.renderAdminSubject = renderAdminSubject;
+
+  // Ensure the Admin Subjects navigation opens this Teacher-style workspace.
+  // app.js has its own Subjects renderer, so keep this listener explicit.
+  const subjectsNav = document.querySelector('[data-section="subjects"]');
+  if (subjectsNav && !subjectsNav.dataset.adminSubjectWorkspaceBound) {
+    subjectsNav.dataset.adminSubjectWorkspaceBound = "1";
+    subjectsNav.addEventListener("click", () => window.renderSubjects());
+  }
 })();
