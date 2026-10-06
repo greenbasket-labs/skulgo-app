@@ -1287,6 +1287,37 @@ function calculateResultGrade(total, scale, maximumTotal = 100) {
   return bands.find((band) => total >= Number(band.minimumTotal) && total <= Number(band.maximumTotal))?.label;
 }
 
+function calculateResultPercentage(record) {
+  const total = calculateResultTotal(record);
+  if (!Number.isFinite(Number(total))) return undefined;
+  const maximum = (Number(record?.caMaximum || 0) + Number(record?.examMaximum || 0));
+  if (maximum <= 0) return undefined;
+  return (Number(total) / maximum) * 100;
+}
+
+function getRequiredSubjectsForStudent(student, subjects) {
+  return subjects.filter((subject) => {
+    if (subject.classId !== student.classId || subject.status === "DISABLED") return false;
+    const offeredTo = Array.isArray(subject.studentIds) ? subject.studentIds : [];
+    return !offeredTo.length || offeredTo.includes(student.studentId);
+  });
+}
+
+function getStudentResultStatus(student, subjects, records) {
+  const requiredSubjects = getRequiredSubjectsForStudent(student, subjects);
+  const completedSubjectIds = new Set(
+    records
+      .filter((record) => record.studentId === student.studentId && Number.isFinite(Number(calculateResultTotal(record))))
+      .map((record) => record.subjectId)
+  );
+  const completed = requiredSubjects.filter((subject) => completedSubjectIds.has(subject.subjectId)).length;
+  return {
+    required: requiredSubjects.length,
+    completed,
+    complete: requiredSubjects.length > 0 && completed === requiredSubjects.length
+  };
+}
+
 function renderGradeBand() {
   const scale = loadGradeScale();
   page.innerHTML = '<div class="section-heading"><div><h2>Grade Band</h2><p class="muted">Default grading bands for this school. Change the minimum and maximum percentage as needed.</p></div></div>' +
@@ -1478,13 +1509,23 @@ function renderReportCard() {
   const studentStats = new Map();
   for (const student of students) {
     const studentRecords = records.filter((record) => record.studentId === student.studentId);
-    const validTotals = studentRecords.map((record) => calculateResultTotal(record)).filter((total) => Number.isFinite(total));
-    const average = validTotals.length ? validTotals.reduce((sum, total) => sum + total, 0) / validTotals.length : 0;
-    studentStats.set(student.studentId, { student, subjectCount: validTotals.length, average });
+    const percentages = studentRecords.map((record) => calculateResultPercentage(record)).filter((value) => Number.isFinite(value));
+    const status = getStudentResultStatus(student, subjects, records);
+    const average = percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : 0;
+    studentStats.set(student.studentId, {
+      student,
+      subjectCount: percentages.length,
+      average,
+      requiredSubjectCount: status.required,
+      completedSubjectCount: status.completed,
+      complete: status.complete
+    });
   }
 
+  // Ranking only uses students whose required subjects are all complete.
+  // This prevents a partially submitted class from producing misleading positions.
   const ranked = [...studentStats.values()]
-    .filter((item) => item.subjectCount > 0)
+    .filter((item) => item.complete)
     .sort((a, b) => b.average - a.average || String(a.student.name).localeCompare(String(b.student.name)));
 
   const classRanks = new Map();
@@ -1696,8 +1737,8 @@ function renderReportCard() {
     const attendanceTotal = present + absent;
     const attendanceRate = attendanceTotal ? Math.round((present / attendanceTotal) * 100) : 0;
     const stats = studentStats.get(student.studentId) || { average: 0, subjectCount: 0 };
-    const overallGrade = stats.subjectCount ? calculateResultGrade(stats.average, gradeScale) : "";
-    const overallBand = stats.subjectCount ? getRemarkForAverage(stats.average, loadRemarkBands()) : null;
+    const overallGrade = stats.complete ? calculateResultGrade(stats.average, gradeScale) : "";
+    const overallBand = stats.complete ? getRemarkForAverage(stats.average, loadRemarkBands()) : null;
     const overallRemark = overallBand?.remark || "";
     const defaultPrincipalRemark = overallBand ? `A ${overallBand.title.toLowerCase()} performance. ${overallBand.remark}` : "";
     const classRank = classRanks.get(student.studentId);
@@ -1734,15 +1775,15 @@ function renderReportCard() {
         </section>
 
         <section class="report-card-summary">
-          <div><span>Average</span><strong>${stats.subjectCount ? stats.average.toFixed(2) : "N/A"}</strong></div>
-          <div><span>Subjects Offered</span><strong>${stats.subjectCount}</strong></div>
-          <div><span>Class Rank</span><strong>${classRank ? ordinal(classRank.position) + " / " + classRank.total : "N/A"}</strong></div>
-          <div><span>School Overall Rank</span><strong>${schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "N/A"}</strong></div>
+          <div><span>Average</span><strong>${stats.complete ? stats.average.toFixed(2) + "%" : "Pending"}</strong></div>
+          <div><span>Subjects Complete</span><strong>${stats.completedSubjectCount} / ${stats.requiredSubjectCount}</strong></div>
+          <div><span>Class Rank</span><strong>${stats.complete && classRank ? ordinal(classRank.position) + " / " + classRank.total : "Pending"}</strong></div>
+          <div><span>School Overall Rank</span><strong>${stats.complete && schoolRank ? ordinal(schoolRank.position) + " / " + schoolRank.total : "Pending"}</strong></div>
         </section>
 
         <section class="report-card-remark">
           <span>Overall Remark</span>
-          <strong>${escapeHtml(overallRemark || "N/A")}</strong>
+          <strong>${escapeHtml(stats.complete ? (overallRemark || "N/A") : "Result pending — not all required subjects are complete.")}</strong>
         </section>
 
         <section class="report-card-remarks-section">
