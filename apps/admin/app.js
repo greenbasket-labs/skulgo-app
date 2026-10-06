@@ -1798,7 +1798,7 @@ function escapePdfText(value) {
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
     .replace(/\)/g, "\\)")
-    .replace(/[^\\x20-\\x7E]/g, "?");
+    .replace(/[^\x20-\x7E]/g, "?");
 }
 
 function createBackupPdf(school, classItem, students, subjects, assignments, attendance, results, backupPayload) {
