@@ -113,7 +113,7 @@ function renderAttendance(classId){
    const configured=candidates.find(item=>[item.name,item.termName,item.label].some(name=>String(name||"")===term));
    const termStart=String(configured?.startDate||configured?.start||"").slice(0,10);
    const termEnd=String(configured?.endDate||configured?.end||"").slice(0,10);
-   if(/^\\d{4}-\\d{2}-\\d{2}$/.test(termStart)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(termEnd)&&termStart<=termEnd)return [termStart,termEnd];
+   if(/^\d{4}-\d{2}-\d{2}$/.test(termStart)&&/^\d{4}-\d{2}-\d{2}$/.test(termEnd)&&termStart<=termEnd)return [termStart,termEnd];
    start.setMonth(0,1);end.setMonth(11,31);
   }
   return [start.toISOString().slice(0,10),end.toISOString().slice(0,10)];
