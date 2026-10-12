@@ -102,18 +102,25 @@ function renderAttendance(classId){
  '</div><div class="form-actions"><button class="primary-button">Save Attendance</button></div><p class="form-message" id="attendance-message"></p></form>'+
  '<div class="card"><h3>Attendance totals</h3><div class="form-grid"><label>Period<select id="attendance-period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="termly">Termly</option><option value="yearly">Yearly</option></select></label><div></div></div><div id="attendance-summary"></div></div>';
  const form=document.querySelector("#attendance-form"),dateInput=form.querySelector("[name=date]"),termInput=form.querySelector("[name=term]"),periodInput=document.querySelector("#attendance-period");
- function periodDates(date,period){
+ function periodDates(date,period,term){
   const d=new Date(date+"T00:00:00"),start=new Date(d),end=new Date(d);
   if(period==="daily")return [date,date];
   if(period==="weekly"){const day=d.getDay();start.setDate(d.getDate()-(day===0?6:day-1));end.setTime(start.getTime());end.setDate(start.getDate()+6);}
   if(period==="monthly"){start.setDate(1);end.setMonth(d.getMonth()+1,0);}
   if(period==="yearly"){start.setMonth(0,1);end.setMonth(11,31);}
-  if(period==="termly"){start.setMonth(0,1);end.setMonth(11,31);}
+  if(period==="termly"){
+   const candidates=[s.transfer?.term,...(Array.isArray(s.terms)?s.terms:[])].filter(Boolean);
+   const configured=candidates.find(item=>[item.name,item.termName,item.label].some(name=>String(name||"")===term));
+   const termStart=String(configured?.startDate||configured?.start||"").slice(0,10);
+   const termEnd=String(configured?.endDate||configured?.end||"").slice(0,10);
+   if(/^\d{4}-\d{2}-\d{2}$/.test(termStart)&&/^\d{4}-\d{2}-\d{2}$/.test(termEnd)&&termStart<=termEnd)return [termStart,termEnd];
+   start.setMonth(0,1);end.setMonth(11,31);
+  }
   return [start.toISOString().slice(0,10),end.toISOString().slice(0,10)];
  }
  function renderSummary(){
-  const date=dateInput.value,period=periodInput.value,[from,to]=periodDates(date,period),term=termInput.value;
-  const rows=records.filter(r=>r.classId===classId&&r.date>=from&&r.date<=to&&(period!=="termly"||(!r.term||r.term===term)));
+  const date=dateInput.value,period=periodInput.value,term=termInput.value,[from,to]=periodDates(date,period,term);
+  const rows=records.filter(r=>r.classId===classId&&r.date>=from&&r.date<=to&&(period!=="termly"||r.term===term));
   const unique=new Map();
   rows.forEach(r=>unique.set(r.date+"|"+r.studentId,r));
   const vals=[...unique.values()],present=vals.filter(r=>r.status==="PRESENT").length,absent=vals.filter(r=>r.status==="ABSENT").length;
